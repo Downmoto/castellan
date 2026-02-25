@@ -1,11 +1,18 @@
-use tracing::{Level, event, span};
+// app wide imports
+use anyhow::Result;
+
+
+use castellan::logging::subscriber::logging_init;
+
+use tracing::{span, info, Level};
+
 
 #[tokio::main]
-async fn main() {
-    tracing_subscriber::fmt::init();
+async fn main() -> Result<()> {
+    let _subscriber = logging_init();
 
-    let span = span!(Level::TRACE, "app_start");
-    let _enter = span.enter();
+    let _guard = span!(Level::INFO, "castellan_global").entered();
+    info!("App start");
 
-    event!(Level::INFO, "Application has started");
+    Ok(())
 }
