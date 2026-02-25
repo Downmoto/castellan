@@ -673,7 +673,6 @@ dependencies = [
 name = "castellan"
 version = "0.1.0-dev"
 dependencies = [
- "anyhow",
  "rig-core",
  "rig-surrealdb",
  "surrealdb 3.0.0",
