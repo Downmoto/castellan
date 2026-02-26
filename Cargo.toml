@@ -20,3 +20,5 @@ tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["std", "env-filter", "fmt", "json"] }
 tracing-appender = "0.2.4"
 tracing-futures = "0.2.5"
+config = "0.15.19"
+serde = { version = "1.0.228", features = ["derive"] }
