@@ -22,3 +22,4 @@ tracing-appender = "0.2.4"
 tracing-futures = "0.2.5"
 config = "0.15.19"
 serde = { version = "1.0.228", features = ["derive"] }
+chrono = "0.4.42"

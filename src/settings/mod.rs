@@ -29,7 +29,7 @@ pub mod prelude {
     impl CastellanSettings {
         fn new() -> Result<Self, SettingError> {
             let config_result: Result<Config, config::ConfigError> = Config::builder()
-                .add_source(config::File::with_name("default")) // return to fix with env::home_dir app init
+                .add_source(config::File::with_name("default").required(false))
                 .add_source(
                     config::Environment::with_prefix("CAST")
                         .prefix_separator("_")
