@@ -8,17 +8,36 @@ pub mod prelude {
     use std::sync::OnceLock;
     use thiserror::Error;
 
-    pub fn settings() -> &'static CastellanSettings {
-        static SETTINGS: OnceLock<CastellanSettings> = OnceLock::new();
+    struct SettingsState {
+        settings: CastellanSettings,
+        used_default_settings: bool,
+    }
 
-        SETTINGS.get_or_init(|| {
+    fn settings_state() -> &'static SettingsState {
+        static SETTINGS_STATE: OnceLock<SettingsState> = OnceLock::new();
+
+        SETTINGS_STATE.get_or_init(|| {
             let settings = CastellanSettings::new();
 
             match settings {
-                Ok(settings) => settings,
-                Err(err) => panic!("{err}"),
+                Ok(settings) => SettingsState {
+                    settings,
+                    used_default_settings: false,
+                },
+                Err(_) => SettingsState {
+                    settings: CastellanSettings::default(),
+                    used_default_settings: true,
+                },
             }
         })
+    }
+
+    pub fn settings() -> &'static CastellanSettings {
+        &settings_state().settings
+    }
+
+    pub fn used_default_settings() -> bool {
+        settings_state().used_default_settings
     }
 
     #[derive(Debug, Default, Deserialize)]
@@ -37,11 +56,7 @@ pub mod prelude {
                 )
                 .build();
 
-            let config = match config_result {
-                Ok(c) => c,
-                Err(_) => return Ok(Self::default()),
-            }
-            .try_deserialize::<CastellanSettings>()?;
+            let config = config_result?.try_deserialize()?;
 
             Ok(config)
         }

@@ -10,4 +10,8 @@ async fn main() {
 
     let _guard = span!(Level::INFO, "castellan_global").entered();
     event!(Level::INFO, "App start");
+
+    if used_default_settings() {
+        event!(Level::WARN, "Failed to parse configuration; using defaults")
+    }
 }
