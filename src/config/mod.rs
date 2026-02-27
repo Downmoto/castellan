@@ -1,13 +1,10 @@
+pub mod error;
+use crate::config::error::SettingError;
+
 use std::sync::OnceLock;
 
 use config::Config;
 use serde::Deserialize;
-use tracing::{Level, info, span, warn};
-
-pub enum SettingError {
-    DeserializeError
-}
-
 
 pub fn settings() -> &'static CastellanSettings {
     static SETTINGS:  OnceLock<CastellanSettings> = OnceLock::new();
@@ -17,15 +14,16 @@ pub fn settings() -> &'static CastellanSettings {
 
         match settings {
             Ok(settings) => settings,
-            Err(err) => panic!("settings double fail {err}")
+            Err(err) => panic!("{err}")
         }
     })
 
 }
 
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub enum AppLogLevel {
+    #[default]
     TRACE,
     DEBUG,
     INFO,
@@ -33,24 +31,21 @@ pub enum AppLogLevel {
     ERROR
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct AppLogSettings {
     pub level: AppLogLevel
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct CastellanSettings {
     app_log: AppLogSettings
 }
 
 impl CastellanSettings {
-    fn new() -> Result<Self, config::ConfigError> {
-        let _guard = span!(Level::WARN, "Config").entered();
-        info!("Initializing Castellan Configuration");
-
-        let config_result = 
+    fn new() -> Result<Self, SettingError> {
+        let config_result: Result<Config, config::ConfigError> = 
             Config::builder()
-                .add_source(config::File::with_name("default"))
+                .add_source(config::File::with_name("default")) // return to fix with env::home_dir app init 
                 .add_source(
                     config::Environment::with_prefix("CAST")
                         .prefix_separator("_")
@@ -59,20 +54,14 @@ impl CastellanSettings {
                 .build();
 
         let config = match config_result {
-            Ok(c) => {
-                info!("Successfully loaded configs");
-                c
-            },
-            Err(_) => {
-                warn!("Failed to load configs");
-                Config::default()
-            }
-        }.try_deserialize();
+            Ok(c) => c,
+            Err(_) => return Ok(Self::default())
+        }.try_deserialize::<CastellanSettings>()?;
 
-        config
+        Ok(config)
     }
 
-    pub fn app_log_settings(&self) -> &AppLogSettings {
+    pub fn app_log(&self) -> &AppLogSettings {
         &self.app_log
     }
 }
