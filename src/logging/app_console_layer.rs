@@ -40,7 +40,11 @@ where
 
         let timestamp = human_timestamp(self.timestamp_mode);
         let level = format_level(metadata.level());
-        let location = format_location(metadata.file(), metadata.line());
+        let location = if matches!(*metadata.level(), tracing::Level::ERROR | tracing::Level::DEBUG) {
+            format_location(metadata.file(), metadata.line())
+        } else {
+            String::new()
+        };
         let message = visitor
             .message
             .as_deref()
