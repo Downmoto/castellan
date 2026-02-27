@@ -21,8 +21,6 @@ pub mod prelude {
             .with(AppConsoleLayer::new().with_filter(app_log_filter))
             .with(AppFileLayer::new());
 
-        println!("{app_log_filter}");
-
         if let Err(e) = tracing::subscriber::set_global_default(sub) {
             return Err(SubscriberErr::InitializationError(e.to_string()))
         };
