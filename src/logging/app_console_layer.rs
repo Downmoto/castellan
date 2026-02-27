@@ -5,19 +5,24 @@ use serde::Deserialize;
 use tracing::{Event, Subscriber};
 use tracing_subscriber::{Layer, layer::Context};
 
+/// controls how timestamps are rendered in console logs.
 #[derive(Clone, Copy, Debug, Default, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TimestampMode {
+    /// renders timestamps using local system time.
     Local,
+    /// renders timestamps in coordinated universal time.
     #[default]
     Utc,
 }
 
+/// tracing layer that prints structured events to stdout.
 pub struct AppConsoleLayer {
     timestamp_mode: TimestampMode,
 }
 
 impl AppConsoleLayer {
+    /// creates a console layer using the provided timestamp mode.
     pub fn new(timestamp_mode: TimestampMode) -> Self {
         Self { timestamp_mode }
     }
