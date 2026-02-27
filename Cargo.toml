@@ -13,8 +13,8 @@ codegen-units = 1
 [dependencies]
 rig-core = "0.31.0"
 tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
-rig-surrealdb = "0.1.0"
-surrealdb = "3.0.0"
+# rig-surrealdb = "0.1.0"
+# surrealdb = "3.0.0" long compile times, not being used yet disabled for now
 thiserror = "2.0.18"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["std", "env-filter", "fmt", "json"] }

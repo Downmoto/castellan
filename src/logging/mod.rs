@@ -2,27 +2,31 @@ pub mod app_console_layer;
 pub mod app_file_layer;
 
 pub mod prelude {
-    use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
-
     use crate::logging::app_console_layer::AppConsoleLayer;
     use crate::logging::app_file_layer::AppFileLayer;
 
-    #[derive(Clone)]
+    use thiserror::Error;
+    use tracing::level_filters::LevelFilter;
+    use tracing_subscriber::Layer;
+    use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
+
+    #[derive(Clone, Debug, Error)]
     pub enum SubscriberErr {
-        InitializationError,
+        #[error("Failed to set global subscriber, {0}")]
+        InitializationError(String),
     }
 
-    pub fn logging_init() -> Result<(), SubscriberErr> {
+    pub fn logging_init(app_log_filter: LevelFilter) -> Result<(), SubscriberErr> {
         let sub = Registry::default()
-            .with(AppConsoleLayer::new())
+            .with(AppConsoleLayer::new().with_filter(app_log_filter))
             .with(AppFileLayer::new());
 
-        match tracing::subscriber::set_global_default(sub) {
-            Err(error) => {
-                eprintln!("Failed to set global subscriber: {}", error);
-                Err(SubscriberErr::InitializationError)
-            }
-            Ok(_) => Ok(()),
-        }
+        println!("{app_log_filter}");
+
+        if let Err(e) = tracing::subscriber::set_global_default(sub) {
+            return Err(SubscriberErr::InitializationError(e.to_string()))
+        };
+
+        Ok(())
     }
 }

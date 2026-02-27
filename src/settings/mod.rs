@@ -1,5 +1,8 @@
 pub mod error;
-use crate::config::error::SettingError;
+pub mod settings_logging;
+
+use crate::settings::settings_logging::AppLogSettings;
+use crate::settings::error::SettingError;
 
 use std::sync::OnceLock;
 
@@ -17,23 +20,6 @@ pub fn settings() -> &'static CastellanSettings {
             Err(err) => panic!("{err}")
         }
     })
-
-}
-
-
-#[derive(Debug, Default, Deserialize)]
-pub enum AppLogLevel {
-    #[default]
-    TRACE,
-    DEBUG,
-    INFO,
-    WARN,
-    ERROR
-}
-
-#[derive(Debug, Default, Deserialize)]
-pub struct AppLogSettings {
-    pub level: AppLogLevel
 }
 
 #[derive(Debug, Default, Deserialize)]
