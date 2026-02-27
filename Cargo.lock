@@ -142,6 +142,7 @@ dependencies = [
  "chrono",
  "config",
  "dotenv",
+ "futures",
  "rig-core",
  "serde",
  "thiserror 2.0.18",

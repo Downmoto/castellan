@@ -1,10 +1,10 @@
 use castellan::logging::prelude::*;
 use castellan::settings::prelude::*;
 
-use rig::{client::{CompletionClient, ProviderClient}, providers::gemini::Client};
-use rig::completion::Prompt;
+use rig::{client::{CompletionClient, ProviderClient}, providers::gemini::Client, streaming::StreamingPrompt};
 use tracing::{Level, event, span};
 use dotenv::dotenv;
+use futures::StreamExt;
 
 
 #[tokio::main]
@@ -31,9 +31,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let prompt = "What is the Rust programming language?";
     println!("{prompt}");
 
-    let response_text = agent.prompt(prompt).await?; 
+    let mut stream = agent.stream_prompt(prompt).await;
 
-    println!("Response: {response_text}");
+    while let Some(item) = stream.next().await {
+        match item {
+            Ok(chunk) => println!("{chunk:?}"),
+            Err(error) => {
+                eprintln!("stream error: {error}");
+                break;
+            }
+        }
+    }
 
     Ok(())
 
