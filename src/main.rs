@@ -1,58 +1,111 @@
-use castellan::logging::prelude::*;
+use castellan::tui::prelude::deinit_terminal;
+use castellan::{logging::prelude::*, tui::prelude::init_terminal};
 use castellan::settings::prelude::*;
 
 use tracing::{Level, event, span};
 use dotenv::dotenv;
 
-
-
 use std::time::Duration;
 use crossterm::{
-    event::{self as cevent, Event, KeyCode},
+    event::{self as cevent, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Style},
     widgets::{Block, Borders, Paragraph},
-    Terminal,
+    Frame, Terminal,
 };
 use tokio::sync::mpsc;
 
+#[derive(Clone, Copy)]
+enum TaskKind {
+    Primary,
+    Secondary,
+}
+
 enum AppEvent {
-    FetchComplete(String),
-    Error(String),
+    FetchComplete { task: TaskKind, data: String },
+    Error { task: TaskKind, message: String },
+}
+
+struct TaskPanel {
+    title: &'static str,
+    trigger: char,
+    result: String,
+    loading: bool,
 }
 
 struct App {
-    result: String,
-    loading: bool,
+    primary: TaskPanel,
+    secondary: TaskPanel,
 }
 
 impl App {
     fn new() -> Self {
         Self {
-            result: "Press 'f' to fetch data".to_string(),
-            loading: false,
+            primary: TaskPanel {
+                title: "task f",
+                trigger: 'f',
+                result: "Press 'f' to fetch data".to_string(),
+                loading: false,
+            },
+            secondary: TaskPanel {
+                title: "task g",
+                trigger: 'g',
+                result: "Press 'g' to fetch data".to_string(),
+                loading: false,
+            },
+        }
+    }
+
+    fn panel_mut(&mut self, task: TaskKind) -> &mut TaskPanel {
+        match task {
+            TaskKind::Primary => &mut self.primary,
+            TaskKind::Secondary => &mut self.secondary,
         }
     }
 }
 
-async fn fetch_data(tx: mpsc::Sender<AppEvent>) {
+async fn fetch_data(tx: mpsc::Sender<AppEvent>, task: TaskKind, delay: Duration, source: &'static str) {
     // Simulate network latency / heavy async work
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(delay).await;
 
-    match some_async_work().await {
-        Ok(data) => tx.send(AppEvent::FetchComplete(data)).await.ok(),
-        Err(e)   => tx.send(AppEvent::Error(e)).await.ok(),
+    match some_async_work(source).await {
+        Ok(data) => tx.send(AppEvent::FetchComplete { task, data }).await.ok(),
+        Err(message) => tx.send(AppEvent::Error { task, message }).await.ok(),
     };
 }
 
-async fn some_async_work() -> Result<String, String> {
+async fn some_async_work(source: &str) -> Result<String, String> {
     // Replace with reqwest, sqlx, etc.
-    Ok("✓ Data fetched successfully after 2 seconds!".to_string())
+    Ok(format!("{source}: fetched data successfully"))
+}
+
+fn render_task_panel(frame: &mut Frame<'_>, area: ratatui::layout::Rect, panel: &TaskPanel) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(3), Constraint::Min(5)])
+        .split(area);
+
+    let status = if panel.loading { "loading..." } else { "idle" };
+    let status_widget = Paragraph::new(status)
+        .block(Block::default().borders(Borders::ALL).title(format!("{} status", panel.title)))
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(if panel.loading { Color::Yellow } else { Color::Green }));
+
+    let result_widget = Paragraph::new(panel.result.as_str())
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(format!("{} result (press '{}')", panel.title, panel.trigger)),
+        )
+        .alignment(Alignment::Center);
+
+    frame.render_widget(status_widget, chunks[0]);
+    frame.render_widget(result_widget, chunks[1]);
 }
 
 
@@ -72,16 +125,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 
     // here
-    enable_raw_mode()?;
-    let mut stdout = std::io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+    let mut terminal = init_terminal().unwrap();
+
 
     // Channel: async tasks → UI
     let (tx, mut rx) = mpsc::channel::<AppEvent>(32);
 
     let mut app = App::new();
+    // let a = Castellan::default();
 
     loop {
         // 1. Draw
@@ -89,36 +140,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let area = frame.area();
 
             let chunks = Layout::default()
-                .direction(Direction::Vertical)
+                .direction(Direction::Horizontal)
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
                 .split(area);
 
-            // Status box
-            let status = if app.loading { "⏳ Loading..." } else { "Idle" };
-            let status_widget = Paragraph::new(status)
-                .block(Block::default().borders(Borders::ALL).title("Status"))
-                .alignment(Alignment::Center)
-                .style(Style::default().fg(if app.loading { Color::Yellow } else { Color::Green }));
-
-            // Result box
-            let result_widget = Paragraph::new(app.result.as_str())
-                .block(Block::default().borders(Borders::ALL).title("Result"))
-                .alignment(Alignment::Center);
-
-            frame.render_widget(status_widget, chunks[0]);
-            frame.render_widget(result_widget, chunks[1]);
+            render_task_panel(frame, chunks[0], &app.primary);
+            render_task_panel(frame, chunks[1], &app.secondary);
         })?;
 
         // 2. Check for messages from async tasks (non-blocking)
         while let Ok(event) = rx.try_recv() {
             match event {
-                AppEvent::FetchComplete(data) => {
-                    app.result = data;
-                    app.loading = false;
+                AppEvent::FetchComplete { task, data } => {
+                    let panel = app.panel_mut(task);
+                    panel.result = data;
+                    panel.loading = false;
                 }
-                AppEvent::Error(e) => {
-                    app.result = format!("Error: {e}");
-                    app.loading = false;
+                AppEvent::Error { task, message } => {
+                    let panel = app.panel_mut(task);
+                    panel.result = format!("error: {message}");
+                    panel.loading = false;
                 }
             }
         }
@@ -128,11 +169,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Event::Key(key) = cevent::read()? {
                 match key.code {
                     KeyCode::Char('q') => break,
-                    KeyCode::Char('f') if !app.loading => {
-                        app.loading = true;
-                        app.result = "Fetching...".to_string();
-                        // Spawn the async task — it will send back via `tx`
-                        tokio::spawn(fetch_data(tx.clone()));
+                    KeyCode::Char('f') if !app.primary.loading => {
+                        app.primary.loading = true;
+                        app.primary.result = "fetching...".to_string();
+                        // spawn independent task f and send completion over the channel
+                        tokio::spawn(fetch_data(
+                            tx.clone(),
+                            TaskKind::Primary,
+                            Duration::from_secs(2),
+                            "task f",
+                        ));
+                    }
+                    KeyCode::Char('g') if !app.secondary.loading => {
+                        app.secondary.loading = true;
+                        app.secondary.result = "fetching...".to_string();
+                        // spawn independent task g so both async tasks can overlap
+                        tokio::spawn(fetch_data(
+                            tx.clone(),
+                            TaskKind::Secondary,
+                            Duration::from_secs(3),
+                            "task g",
+                        ));
                     }
                     _ => {}
                 }
@@ -141,8 +198,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Cleanup
-    disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    let _ = deinit_terminal(&mut terminal);
+
     Ok(())
 
 }
