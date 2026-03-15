@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 use tracing::{event, span, Level};
 
 enum AppEvent {
-    AssistantReady(String),
+    AssistantReady { tab_index: usize, message: String },
 }
 
 #[tokio::main]
@@ -41,7 +41,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         while let Ok(app_event) = rx.try_recv() {
             match app_event {
-                AppEvent::AssistantReady(message) => app.push_assistant_message(message),
+                AppEvent::AssistantReady { tab_index, message } => {
+                    app.push_assistant_message_for_tab(tab_index, message)
+                }
             }
         }
 
@@ -53,6 +55,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match key.code {
                 KeyCode::Esc => break,
                 KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => break,
+                KeyCode::Char('t') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    app.new_chat_tab()
+                }
+                KeyCode::Tab => app.next_tab(),
+                KeyCode::BackTab => app.prev_tab(),
                 KeyCode::Char(ch) => app.push_char(ch),
                 KeyCode::Backspace => app.backspace(),
                 KeyCode::Up => app.scroll_up(1),
@@ -61,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 KeyCode::PageDown => app.scroll_down(10),
                 KeyCode::End => app.scroll_to_bottom(),
                 KeyCode::Enter => {
-                    if let Some(message) = app.take_input_for_submit() {
+                    if let Some((tab_index, message)) = app.take_input_for_submit() {
                         app.push_user_message(message.clone());
                         let sender = tx.clone();
 
@@ -73,7 +80,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 ),
                             };
 
-                            let _ = sender.send(AppEvent::AssistantReady(reply)).await;
+                            let _ = sender
+                                .send(AppEvent::AssistantReady {
+                                    tab_index,
+                                    message: reply,
+                                })
+                                .await;
                         });
                     }
                 }
