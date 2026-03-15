@@ -66,7 +66,8 @@ impl Widget for ChatWidget<'_> {
             .wrap(Wrap { trim: false })
             .render(sections[0], buf);
 
-        Paragraph::new(format!("> {}", self.input))
-            .render(sections[1], buf);
+        let input_with_cursor = format!("> {}█", self.input);
+
+        Paragraph::new(input_with_cursor).render(sections[1], buf);
     }
 }

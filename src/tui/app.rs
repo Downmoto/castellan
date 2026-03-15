@@ -1,7 +1,8 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     prelude::Rect,
-    widgets::Widget,
+    style::{Color, Style},
+    widgets::{Block, Widget},
 };
 
 use super::components::{
@@ -135,6 +136,10 @@ impl Widget for &Castellan {
     where
         Self: Sized,
     {
+        Block::default()
+            .style(Style::default().bg(Color::Black))
+            .render(area, buf);
+
         let page = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -149,7 +154,9 @@ impl Widget for &Castellan {
             .constraints([Constraint::Percentage(100), Constraint::Length(30)])
             .split(page[0]);
 
-        ChatWidget::new(self.input(), self.messages(), self.scroll_from_bottom()).render(columns[0], buf);
+        ChatWidget::new(self.input(), self.messages(), self.scroll_from_bottom())
+            .render(columns[0], buf);
+
         info_sidebar::render(columns[1], buf);
         tabs_bar::render(page[1], buf);
         let status_text = self.status_text();
