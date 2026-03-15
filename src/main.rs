@@ -2,10 +2,16 @@ use castellan::logging::prelude::*;
 use castellan::settings::prelude::*;
 use castellan::tui::{app::Castellan, prelude::*};
 
-use crossterm::event::{self as cevent, Event, KeyCode};
+use chrono::Local;
+use crossterm::event::{self as cevent, Event, KeyCode, KeyEventKind, KeyModifiers};
 use dotenv::dotenv;
 use std::time::Duration;
+use tokio::sync::mpsc;
 use tracing::{event, span, Level};
+
+enum AppEvent {
+    EchoReady(String),
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -22,16 +28,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let mut terminal = init_terminal()?;
-    let app = Castellan;
+    let mut app = Castellan::default();
+    let (tx, mut rx) = mpsc::channel::<AppEvent>(64);
 
     loop {
+        let area = terminal.size()?;
+        app.update_viewport_from_area(area.into());
+
         terminal.draw(|frame| {
             frame.render_widget(&app, frame.area());
         })?;
 
+        while let Ok(app_event) = rx.try_recv() {
+            match app_event {
+                AppEvent::EchoReady(message) => app.push_assistant_message(message),
+            }
+        }
+
         if cevent::poll(Duration::from_millis(100))? && let Event::Key(key) = cevent::read()? {
-            if key.code == KeyCode::Char('q') {
-                break;
+            if key.kind != KeyEventKind::Press {
+                continue;
+            }
+
+            match key.code {
+                KeyCode::Esc => break,
+                KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => break,
+                KeyCode::Char(ch) => app.push_char(ch),
+                KeyCode::Backspace => app.backspace(),
+                KeyCode::Up => app.scroll_up(1),
+                KeyCode::Down => app.scroll_down(1),
+                KeyCode::PageUp => app.scroll_up(10),
+                KeyCode::PageDown => app.scroll_down(10),
+                KeyCode::End => app.scroll_to_bottom(),
+                KeyCode::Enter => {
+                    if let Some(message) = app.take_input_for_submit() {
+                        app.push_user_message(message.clone());
+                        let sender = tx.clone();
+
+                        tokio::spawn(async move {
+                            let timestamp = Local::now().format("%H:%M:%S").to_string();
+                            let echo = format!("{} [{}]", message, timestamp);
+                            let _ = sender.send(AppEvent::EchoReady(echo)).await;
+                        });
+                    }
+                }
+                _ => {}
             }
         }
     }
