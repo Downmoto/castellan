@@ -4,6 +4,8 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     prelude::{Buffer, Rect},
+    style::{Color, Modifier, Style},
+    text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph, Widget, Wrap},
 };
 
@@ -111,16 +113,26 @@ impl ChatState {
 
     /// computes total wrapped transcript lines for current viewport width.
     fn total_transcript_lines(&self) -> usize {
+        self.total_transcript_lines_for_width(self.transcript_viewport_width.max(1))
+    }
+
+    /// computes total wrapped transcript lines for an explicit width.
+    fn total_transcript_lines_for_width(&self, width: usize) -> usize {
         if self.messages.is_empty() {
             return 1;
         }
 
-        let width = self.transcript_viewport_width.max(1);
+        let width = width.max(1);
         self.messages
             .iter()
-            .map(|message| {
-                let row = format!("{}: {}", message.sender, message.content);
-                wrapped_line_count(&row, width)
+            .enumerate()
+            .map(|(index, message)| {
+                let message_lines = message_plain_rows(message)
+                    .iter()
+                    .map(|row| wrapped_line_count(row, width))
+                    .sum::<usize>();
+                let separator = usize::from(index + 1 < self.messages.len());
+                message_lines + separator
             })
             .sum()
     }
@@ -135,6 +147,78 @@ impl ChatState {
     fn clamp_scroll(&mut self) {
         self.scroll_from_bottom = self.scroll_from_bottom.min(self.max_scroll_from_bottom());
     }
+}
+
+fn sender_prefix_and_style(sender: &str) -> (&'static str, Style) {
+    match sender {
+        "you" => (
+            "you       > ",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+        "assistant" => (
+            "assistant < ",
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        ),
+        _ => (
+            "message   - ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+    }
+}
+
+fn message_plain_rows(message: &ChatMessage) -> Vec<String> {
+    let (prefix, _) = sender_prefix_and_style(&message.sender);
+    let continuation = " ".repeat(prefix.len());
+    let mut rows: Vec<String> = Vec::new();
+
+    for (line_index, line) in message.content.split('\n').enumerate() {
+        if line_index == 0 {
+            rows.push(format!("{}{}", prefix, line));
+        } else {
+            rows.push(format!("{}{}", continuation, line));
+        }
+    }
+
+    if rows.is_empty() {
+        rows.push(prefix.to_string());
+    }
+
+    rows
+}
+
+fn message_styled_rows(message: &ChatMessage) -> Vec<Line<'static>> {
+    let (prefix, prefix_style) = sender_prefix_and_style(&message.sender);
+    let continuation = " ".repeat(prefix.len());
+    let mut rows: Vec<Line<'static>> = Vec::new();
+
+    for (line_index, line) in message.content.split('\n').enumerate() {
+        if line_index == 0 {
+            rows.push(Line::from(vec![
+                Span::styled(prefix.to_string(), prefix_style),
+                Span::raw(line.to_string()),
+            ]));
+        } else {
+            rows.push(Line::from(vec![
+                Span::raw(continuation.clone()),
+                Span::raw(line.to_string()),
+            ]));
+        }
+    }
+
+    if rows.is_empty() {
+        rows.push(Line::from(vec![Span::styled(
+            prefix.to_string(),
+            prefix_style,
+        )]));
+    }
+
+    rows
 }
 
 /// chat renderer that reads from shared chat state.
@@ -180,20 +264,29 @@ impl Widget for ChatWidget<'_> {
             .split(content_area);
 
         let transcript = if self.state.messages.is_empty() {
-            "no messages yet. type and press enter to send.".to_string()
+            Text::from(Line::styled(
+                "no messages yet. type and press enter to send.",
+                Style::default().fg(Color::DarkGray),
+            ))
         } else {
-            self.state
-                .messages
-                .iter()
-                .map(|message| format!("{}: {}", message.sender, message.content))
-                .collect::<Vec<_>>()
-                .join("\n")
+            let mut lines: Vec<Line<'static>> = Vec::new();
+
+            for (index, message) in self.state.messages.iter().enumerate() {
+                lines.extend(message_styled_rows(message));
+                if index + 1 < self.state.messages.len() {
+                    lines.push(Line::raw(""));
+                }
+            }
+
+            Text::from(lines)
         };
 
         let transcript_height = sections[0].height as usize;
-        let transcript_width = sections[0].width.max(1);
-        let paragraph = Paragraph::new(transcript.clone()).wrap(Wrap { trim: false });
-        let total_lines = wrapped_line_count(&transcript, transcript_width as usize);
+        let transcript_width = sections[0].width.max(1) as usize;
+        let paragraph = Paragraph::new(transcript).wrap(Wrap { trim: false });
+        let total_lines = self
+            .state
+            .total_transcript_lines_for_width(transcript_width);
         let max_scroll_from_bottom = total_lines.saturating_sub(transcript_height);
         let clamped_scroll_from_bottom = self
             .state
