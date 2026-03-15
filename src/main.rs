@@ -1,8 +1,8 @@
 use castellan::logging::prelude::*;
+use castellan::llm;
 use castellan::settings::prelude::*;
 use castellan::tui::{app::Castellan, prelude::*};
 
-use chrono::Local;
 use crossterm::event::{self as cevent, Event, KeyCode, KeyEventKind, KeyModifiers};
 use dotenv::dotenv;
 use std::time::Duration;
@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 use tracing::{event, span, Level};
 
 enum AppEvent {
-    EchoReady(String),
+    AssistantReady(String),
 }
 
 #[tokio::main]
@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         while let Ok(app_event) = rx.try_recv() {
             match app_event {
-                AppEvent::EchoReady(message) => app.push_assistant_message(message),
+                AppEvent::AssistantReady(message) => app.push_assistant_message(message),
             }
         }
 
@@ -66,9 +66,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let sender = tx.clone();
 
                         tokio::spawn(async move {
-                            let timestamp = Local::now().format("%H:%M:%S").to_string();
-                            let echo = format!("{} [{}]", message, timestamp);
-                            let _ = sender.send(AppEvent::EchoReady(echo)).await;
+                            let reply = match llm::generate_reply(&message).await {
+                                Ok(content) => content,
+                                Err(error) => format!(
+                                    "llm request failed: {error}. set OPENAI_API_KEY and optional CAST_LLM_MODEL."
+                                ),
+                            };
+
+                            let _ = sender.send(AppEvent::AssistantReady(reply)).await;
                         });
                     }
                 }

@@ -15,24 +15,50 @@ pub struct Castellan {
     input: String,
     messages: Vec<ChatMessage>,
     scroll_from_bottom: usize,
-    transcript_viewport_lines: usize,
+    transcript_viewport_width: usize,
+    transcript_viewport_height: usize,
 }
 
 impl Castellan {
+    fn wrapped_line_count(text: &str, width: usize) -> usize {
+        if width == 0 {
+            return 0;
+        }
+
+        text.split('\n')
+            .map(|line| {
+                let visual_width = line.chars().count();
+                let cells = visual_width.max(1);
+                (cells - 1) / width + 1
+            })
+            .sum()
+    }
+
+    fn total_transcript_lines(&self) -> usize {
+        if self.messages.is_empty() {
+            return 1;
+        }
+
+        let width = self.transcript_viewport_width.max(1);
+        self.messages
+            .iter()
+            .map(|message| {
+                let row = format!("{}: {}", message.sender, message.content);
+                Self::wrapped_line_count(&row, width)
+            })
+            .sum()
+    }
+
     fn max_scroll_from_bottom(&self) -> usize {
-        let total_lines = if self.messages.is_empty() {
-            1
-        } else {
-            self.messages.len()
-        };
-        total_lines.saturating_sub(self.transcript_viewport_lines.max(1))
+        let viewport = self.transcript_viewport_height.max(1);
+        self.total_transcript_lines().saturating_sub(viewport)
     }
 
     fn clamp_scroll(&mut self) {
         self.scroll_from_bottom = self.scroll_from_bottom.min(self.max_scroll_from_bottom());
     }
 
-    fn transcript_height_from_area(area: Rect) -> usize {
+    pub fn update_viewport_from_area(&mut self, area: Rect) {
         let page = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -48,12 +74,12 @@ impl Castellan {
             .split(page[0]);
 
         let chat_area = columns[0];
-        let inner_height = chat_area.height.saturating_sub(2);
-        inner_height.saturating_sub(1).max(1) as usize
-    }
+        let content_width = chat_area.width.saturating_sub(2).max(1) as usize;
+        let content_height = chat_area.height.saturating_sub(2);
+        let transcript_height = content_height.saturating_sub(1).max(1) as usize;
 
-    pub fn update_viewport_from_area(&mut self, area: Rect) {
-        self.transcript_viewport_lines = Self::transcript_height_from_area(area);
+        self.transcript_viewport_width = content_width;
+        self.transcript_viewport_height = transcript_height;
         self.clamp_scroll();
     }
 
@@ -118,8 +144,11 @@ impl Castellan {
     }
 
     pub fn status_text(&self) -> String {
+        let max_scroll = self.max_scroll_from_bottom();
         let scroll = if self.scroll_from_bottom == 0 {
             "scroll: bottom".to_string()
+        } else if self.scroll_from_bottom >= max_scroll {
+            "scroll: top".to_string()
         } else {
             format!("scroll: {} lines up", self.scroll_from_bottom)
         };
