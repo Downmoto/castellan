@@ -3,7 +3,7 @@ use castellan::llm;
 use castellan::settings::prelude::*;
 use castellan::tui::{app::Castellan, prelude::*};
 
-use crossterm::event::{self as cevent, Event, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::event::{self as c_event, Event, KeyCode, KeyEventKind, KeyModifiers};
 use dotenv::dotenv;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        if cevent::poll(Duration::from_millis(100))? && let Event::Key(key) = cevent::read()? {
+        if c_event::poll(Duration::from_millis(100))? && let Event::Key(key) = c_event::read()? {
             if key.kind != KeyEventKind::Press {
                 continue;
             }
