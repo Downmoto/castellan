@@ -1,9 +1,10 @@
 use castellan::logging::prelude::*;
 use castellan::llm;
+use castellan::input::{KeyAction, KeyCommand, KeybindResolver};
 use castellan::settings::prelude::*;
 use castellan::tui::{app::Castellan, prelude::*};
 
-use crossterm::event::{self as c_event, Event, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::event::{self as c_event, Event, KeyEventKind};
 use dotenv::dotenv;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -29,6 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut terminal = init_terminal()?;
     let mut app = Castellan::default();
+    let key_resolver = KeybindResolver::new(settings.keybinds());
     let (tx, mut rx) = mpsc::channel::<AppEvent>(64);
 
     loop {
@@ -52,44 +54,46 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
 
-            match key.code {
-                KeyCode::Esc => break,
-                KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => break,
-                KeyCode::Char('t') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                    app.new_chat_tab()
-                }
-                KeyCode::Tab => app.next_tab(),
-                KeyCode::BackTab => app.prev_tab(),
-                KeyCode::Char(ch) => app.push_char(ch),
-                KeyCode::Backspace => app.backspace(),
-                KeyCode::Up => app.scroll_up(1),
-                KeyCode::Down => app.scroll_down(1),
-                KeyCode::PageUp => app.scroll_up(10),
-                KeyCode::PageDown => app.scroll_down(10),
-                KeyCode::End => app.scroll_to_bottom(),
-                KeyCode::Enter => {
-                    if let Some((tab_index, message)) = app.take_input_for_submit() {
-                        app.push_user_message(message.clone());
-                        let sender = tx.clone();
+            match key_resolver.resolve(key, app.input_mode()) {
+                KeyAction::Command(command) => match command {
+                    KeyCommand::ExitApp => break,
+                    KeyCommand::EnterInputMode => app.enter_input_mode(),
+                    KeyCommand::ExitInputMode => app.exit_input_mode(),
+                    KeyCommand::NewChatTab => app.new_chat_tab(),
+                    KeyCommand::NextTab => app.next_tab(),
+                    KeyCommand::PrevTab => app.prev_tab(),
+                    KeyCommand::Backspace => app.backspace(),
+                    KeyCommand::CloseCurrentTab => app.close_current_tab(),
+                    KeyCommand::ScrollUp => app.scroll_up(1),
+                    KeyCommand::ScrollDown => app.scroll_down(1),
+                    KeyCommand::PageUp => app.scroll_up(10),
+                    KeyCommand::PageDown => app.scroll_down(10),
+                    KeyCommand::ScrollToBottom => app.scroll_to_bottom(),
+                    KeyCommand::Submit => {
+                        if let Some((tab_index, message)) = app.take_input_for_submit() {
+                            app.push_user_message(message.clone());
+                            let sender = tx.clone();
 
-                        tokio::spawn(async move {
-                            let reply = match llm::generate_reply(&message).await {
-                                Ok(content) => content,
-                                Err(error) => format!(
-                                    "llm request failed: {error}. set OPENAI_API_KEY and optional CAST_LLM_MODEL."
-                                ),
-                            };
+                            tokio::spawn(async move {
+                                let reply = match llm::generate_reply(&message).await {
+                                    Ok(content) => content,
+                                    Err(error) => format!(
+                                        "llm request failed: {error}. set OPENAI_API_KEY and optional CAST_LLM_MODEL."
+                                    ),
+                                };
 
-                            let _ = sender
-                                .send(AppEvent::AssistantReady {
-                                    tab_index,
-                                    message: reply,
-                                })
-                                .await;
-                        });
+                                let _ = sender
+                                    .send(AppEvent::AssistantReady {
+                                        tab_index,
+                                        message: reply,
+                                    })
+                                    .await;
+                            });
+                        }
                     }
-                }
-                _ => {}
+                },
+                KeyAction::InsertChar(ch) => app.push_char(ch),
+                KeyAction::Noop => {}
             }
         }
     }

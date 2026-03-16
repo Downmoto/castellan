@@ -1,6 +1,8 @@
 //! app shell composition and event-facing api.
 //! this module owns top-level layout and delegates chat behavior.
 
+use crate::input::InputMode;
+
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     prelude::Rect,
@@ -18,6 +20,7 @@ use super::components::{
 pub struct Castellan {
     chats: Vec<ChatState>,
     active_tab: usize,
+    input_mode: InputMode,
 }
 
 impl Default for Castellan {
@@ -25,6 +28,7 @@ impl Default for Castellan {
         Self {
             chats: vec![ChatState::default()],
             active_tab: 0,
+            input_mode: InputMode::Normal,
         }
     }
 }
@@ -47,6 +51,32 @@ impl Castellan {
     /// returns the current active chat index.
     pub fn active_tab_index(&self) -> usize {
         self.active_tab
+    }
+
+    /// returns the current global input mode.
+    pub fn input_mode(&self) -> InputMode {
+        self.input_mode
+    }
+
+    /// enters input mode for text entry.
+    pub fn enter_input_mode(&mut self) {
+        self.input_mode = InputMode::Input;
+    }
+
+    /// exits input mode and returns to command-only mode.
+    pub fn exit_input_mode(&mut self) {
+        self.input_mode = InputMode::Normal;
+    }
+
+    pub fn close_current_tab(&mut self) {
+        if self.chats.len() <= 1 {
+            return;
+        }
+
+        self.chats.remove(self.active_tab);
+        if self.active_tab >= self.chats.len() {
+            self.active_tab = self.chats.len().saturating_sub(1);
+        }
     }
 
     /// creates a new chat tab and focuses it.
@@ -142,10 +172,16 @@ impl Castellan {
 
     /// builds status text for the shared status bar component.
     pub fn status_text(&self) -> String {
+        let mode_text = match self.input_mode {
+            InputMode::Normal => "mode: normal",
+            InputMode::Input => "mode: input",
+        };
+
         format!(
-            "tab {}/{} | {} | tabs: tab/shift+tab new: ctrl+t",
+            "tab {}/{} | {} | {} | normal: i to type | input: esc stop enter submit | tabs: tab/shift+tab new: ctrl+t | quit: ctrl+c",
             self.active_tab + 1,
             self.chats.len(),
+            mode_text,
             self.active_chat().status_text()
         )
     }
@@ -179,7 +215,6 @@ impl Widget for &Castellan {
 
         info_sidebar::render(columns[1], buf);
         TabsBar::new(&self.tab_labels(), self.active_tab).render(page[1], buf);
-        let status_text = self.status_text();
-        status_bar::render(page[2], buf, &status_text);
+        status_bar::render(page[2], buf, &self.status_text());
     }
 }
