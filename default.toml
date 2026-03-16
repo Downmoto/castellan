@@ -2,6 +2,10 @@
 level = "DEBUG"
 timestamp_mode = "utc"
 
+[scroll]
+line_step = 1
+page_step = 10
+
 [keybinds.exit_app]
 code = "c"
 ctrl = true

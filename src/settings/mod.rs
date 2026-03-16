@@ -1,9 +1,11 @@
 pub mod settings_logging;
 pub mod settings_keybinds;
+pub mod settings_scroll;
 
 pub mod prelude {
     use crate::settings::settings_logging::AppLogSettings;
     use crate::settings::settings_keybinds::AppKeybindsSettings;
+    use crate::settings::settings_scroll::AppScrollSettings;
 
     use config::Config;
     use serde::Deserialize;
@@ -48,12 +50,14 @@ pub mod prelude {
         app_log: AppLogSettings,
         #[serde(default)]
         keybinds: AppKeybindsSettings,
+        #[serde(default)]
+        scroll: AppScrollSettings,
     }
 
     impl CastellanSettings {
         fn new() -> Result<Self, SettingError> {
             let config_result: Result<Config, config::ConfigError> = Config::builder()
-                .add_source(config::File::with_name("default").required(false))
+                .add_source(config::File::with_name("default").required(true))
                 .add_source(
                     config::Environment::with_prefix("CAST")
                         .prefix_separator("_")
@@ -72,6 +76,10 @@ pub mod prelude {
 
         pub fn keybinds(&self) -> &AppKeybindsSettings {
             &self.keybinds
+        }
+
+        pub fn scroll(&self) -> &AppScrollSettings {
+            &self.scroll
         }
     }
 
