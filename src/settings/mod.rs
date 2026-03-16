@@ -1,7 +1,9 @@
 pub mod settings_logging;
+pub mod settings_keybinds;
 
 pub mod prelude {
     use crate::settings::settings_logging::AppLogSettings;
+    use crate::settings::settings_keybinds::AppKeybindsSettings;
 
     use config::Config;
     use serde::Deserialize;
@@ -42,7 +44,10 @@ pub mod prelude {
 
     #[derive(Debug, Default, Deserialize)]
     pub struct CastellanSettings {
+        #[serde(default)]
         app_log: AppLogSettings,
+        #[serde(default)]
+        keybinds: AppKeybindsSettings,
     }
 
     impl CastellanSettings {
@@ -63,6 +68,10 @@ pub mod prelude {
 
         pub fn app_log(&self) -> &AppLogSettings {
             &self.app_log
+        }
+
+        pub fn keybinds(&self) -> &AppKeybindsSettings {
+            &self.keybinds
         }
     }
 

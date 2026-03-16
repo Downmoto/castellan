@@ -105,10 +105,7 @@ impl ChatState {
             format!("scroll: {} lines up", self.scroll_from_bottom)
         };
 
-        format!(
-            "{} | keys: up/down pgup/pgdn end | submit: enter | quit: esc/ctrl+c",
-            scroll
-        )
+        scroll
     }
 
     /// computes total wrapped transcript lines for current viewport width.
