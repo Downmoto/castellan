@@ -4,6 +4,12 @@ use tracing_subscriber::Layer;
 /// placeholder tracing layer for application file logging.
 pub struct AppFileLayer;
 
+impl Default for AppFileLayer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AppFileLayer {
     /// creates the file logging layer.
     pub fn new() -> Self {
