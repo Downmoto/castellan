@@ -82,6 +82,6 @@ shift = false
 
 [keybinds.close_current_tab]
 code = "w"
-ctrl = false
+ctrl = true
 alt = false
 shift = false
