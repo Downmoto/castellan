@@ -1,7 +1,11 @@
 //! app shell composition and event-facing api.
 //! this module owns top-level layout and delegates chat behavior.
 
-use crate::{input::InputMode, tui::components::info_sidebar::InfoSidebar};
+use crate::{
+    input::InputMode,
+    settings::prelude::settings,
+    tui::components::info_sidebar::InfoSidebar,
+};
 
 use ratatui::{
     layout::{Constraint, Direction, Flex, Layout},
@@ -170,21 +174,6 @@ impl Castellan {
         self.active_chat_mut().scroll_to_bottom();
     }
 
-    /// builds status text for the shared status bar component.
-    pub fn status_text(&self) -> String {
-        let mode_text = match self.input_mode {
-            InputMode::Normal => "mode: normal",
-            InputMode::Input => "mode: input",
-        };
-
-        format!(
-            "tab {}/{} | {} | {} | normal: i to type | input: esc stop enter submit | tabs: tab/shift+tab new: ctrl+t | quit: ctrl+c",
-            self.active_tab + 1,
-            self.chats.len(),
-            mode_text,
-            self.active_chat().status_text()
-        )
-    }
 }
 
 impl Widget for &Castellan {
@@ -219,6 +208,12 @@ impl Widget for &Castellan {
 
         InfoSidebar::new().render(columns[1], buf);
         TabsBar::new(&self.tab_labels(), self.active_tab).render(page[1], buf);
-        status_bar::render(page[2], buf, &self.status_text());
+        status_bar::render(
+            page[2],
+            buf,
+            self.input_mode,
+            &self.active_chat().status_text(),
+            settings().keybinds(),
+        );
     }
 }

@@ -109,6 +109,27 @@ impl KeyChordSettings {
 
         true
     }
+
+    /// returns a human-readable label for the configured key chord.
+    pub fn label(&self) -> String {
+        let mut parts: Vec<&str> = Vec::new();
+
+        if self.ctrl {
+            parts.push("ctrl");
+        }
+
+        if self.alt {
+            parts.push("alt");
+        }
+
+        if self.shift {
+            parts.push("shift");
+        }
+
+        let key_label = key_code_label(self.code);
+        parts.push(&key_label);
+        parts.join("+")
+    }
 }
 
 fn code_matches(expected: KeyCode, actual: KeyCode) -> bool {
@@ -200,6 +221,11 @@ impl AppKeybindsSettings {
         None
     }
 
+    /// returns the display label for a command's current binding.
+    pub fn label_for(&self, command: KeyCommand) -> String {
+        self.binding_for(command).label()
+    }
+
     /// Returns the configured chord associated with a given command.
     fn binding_for(&self, command: KeyCommand) -> &KeyChordSettings {
         match command {
@@ -218,6 +244,23 @@ impl AppKeybindsSettings {
             KeyCommand::ScrollToBottom => &self.scroll_to_bottom,
             KeyCommand::CloseCurrentTab => &self.close_current_tab,
         }
+    }
+}
+
+fn key_code_label(code: KeyCode) -> String {
+    match code {
+        KeyCode::Enter => "enter".to_string(),
+        KeyCode::Tab => "tab".to_string(),
+        KeyCode::BackTab => "tab".to_string(),
+        KeyCode::Backspace => "backspace".to_string(),
+        KeyCode::Up => "up".to_string(),
+        KeyCode::Down => "down".to_string(),
+        KeyCode::PageUp => "pageup".to_string(),
+        KeyCode::PageDown => "pagedown".to_string(),
+        KeyCode::End => "end".to_string(),
+        KeyCode::Esc => "esc".to_string(),
+        KeyCode::Char(ch) => ch.to_ascii_lowercase().to_string(),
+        _ => "key".to_string(),
     }
 }
 

@@ -1,12 +1,22 @@
 use ratatui::{
+    layout::{Constraint, Direction, Layout},
     prelude::{Buffer, Rect},
-    style::{Style, Stylize},
-    widgets::{Block, Borders, Paragraph, Widget, Wrap},
+    style::{Color, Style, Stylize},
+    text::{Line, Span},
+    widgets::{Block, Borders, Paragraph, Widget},
 };
 
+use crate::input::InputMode;
+use crate::settings::settings_keybinds::{AppKeybindsSettings, KeyCommand};
 use crate::tui::util::secondary_colour;
 
-pub fn render(area: Rect, buf: &mut Buffer, status_text: &str) {
+pub fn render(
+    area: Rect,
+    buf: &mut Buffer,
+    input_mode: InputMode,
+    scroll_text: &str,
+    keybinds: &AppKeybindsSettings,
+) {
     let frame_block = Block::default()
         .border_style(Style::default().fg(secondary_colour()))
         .borders(Borders::ALL)
@@ -15,7 +25,51 @@ pub fn render(area: Rect, buf: &mut Buffer, status_text: &str) {
     let content_area = frame_block.inner(area);
     frame_block.render(area, buf);
 
-    Paragraph::new(status_text)
-        .wrap(Wrap { trim: true })
-        .render(content_area, buf);
+    let sections = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Length(16),
+            Constraint::Min(1),
+            Constraint::Length(24),
+        ])
+        .split(content_area);
+
+    let (mode_label, mode_bg, mode_fg, center_text) = match input_mode {
+        InputMode::Normal => (
+            " normal ",
+            Color::Rgb(255, 105, 180),
+            Color::Black,
+            format!(
+                "{} input | {}/{} switch | {} new | {} close | {}/{} scroll | {} quit",
+                keybinds.label_for(KeyCommand::EnterInputMode),
+                keybinds.label_for(KeyCommand::NextTab),
+                keybinds.label_for(KeyCommand::PrevTab),
+                keybinds.label_for(KeyCommand::NewChatTab),
+                keybinds.label_for(KeyCommand::CloseCurrentTab),
+                keybinds.label_for(KeyCommand::ScrollDown),
+                keybinds.label_for(KeyCommand::ScrollUp),
+                keybinds.label_for(KeyCommand::ExitApp),
+            ),
+        ),
+        InputMode::Input => (
+            " input ",
+            Color::White,
+            Color::Black,
+            format!(
+                "{} send | {} normal | {} delete | placeholder: chars and model hint",
+                keybinds.label_for(KeyCommand::Submit),
+                keybinds.label_for(KeyCommand::ExitInputMode),
+                keybinds.label_for(KeyCommand::Backspace),
+            ),
+        ),
+    };
+
+    Paragraph::new(Line::from(vec![
+        Span::styled(mode_label, Style::default().bg(mode_bg).fg(mode_fg).bold()),
+    ]))
+    .render(sections[0], buf);
+
+    Paragraph::new(center_text).centered().render(sections[1], buf);
+
+    Paragraph::new(scroll_text).right_aligned().render(sections[2], buf);
 }
