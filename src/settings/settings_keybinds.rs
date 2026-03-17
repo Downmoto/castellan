@@ -41,14 +41,18 @@ pub enum KeyCommand {
     /// Jump scrolling to the bottom of content.
     ScrollToBottom,
     /// Close the currently selected tab.
-    CloseCurrentTab,}
+    CloseCurrentTab,
+    /// Rename the currently selectd tab
+    RenameCurrentTab
+
+}
 
 impl KeyCommand {
     /// Stable command resolution order used by [`AppKeybindsSettings::resolve_command`].
     ///
     /// Ordering matters if multiple configured chords overlap; the first
     /// matching command wins.
-    const ORDERED: [Self; 14] = [
+    const ORDERED: [Self; 15] = [
         Self::ExitApp,
         Self::EnterInputMode,
         Self::ExitInputMode,
@@ -63,6 +67,7 @@ impl KeyCommand {
         Self::PageDown,
         Self::ScrollToBottom,
         Self::CloseCurrentTab,
+        Self::RenameCurrentTab
     ];
 }
 
@@ -196,6 +201,8 @@ pub struct AppKeybindsSettings {
     pub scroll_to_bottom: KeyChordSettings,
     /// Binding for [`KeyCommand::CloseCurrentTab`].
     pub close_current_tab: KeyChordSettings,
+    /// Binding for [`KeyCommand::RenameCurrentTab`].
+    pub rename_current_tab: KeyChordSettings
 }
 
 impl Default for AppKeybindsSettings {
@@ -216,6 +223,7 @@ impl Default for AppKeybindsSettings {
             page_down: shift_key('j'),
             scroll_to_bottom: key(KeyCode::End),
             close_current_tab: ctrl_key('w'),
+            rename_current_tab: ctrl_key('r')
         }
     }
 }
@@ -256,6 +264,7 @@ impl AppKeybindsSettings {
             KeyCommand::PageDown => &self.page_down,
             KeyCommand::ScrollToBottom => &self.scroll_to_bottom,
             KeyCommand::CloseCurrentTab => &self.close_current_tab,
+            KeyCommand::RenameCurrentTab => &self.rename_current_tab
         }
     }
 }

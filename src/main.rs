@@ -4,7 +4,7 @@ use castellan::input::{KeyAction, KeyCommand, KeybindResolver};
 use castellan::settings::prelude::*;
 use castellan::tui::{app::Castellan, prelude::*};
 
-use crossterm::event::{self as c_event, Event, KeyEventKind};
+use crossterm::event::{self as c_event, Event, KeyCode, KeyEventKind, KeyModifiers};
 use dotenv::dotenv;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -57,6 +57,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
 
+            if app.is_renaming_current_tab() {
+                match key.code {
+                    KeyCode::Enter => app.commit_current_tab_rename(),
+                    KeyCode::Esc => app.cancel_current_tab_rename(),
+                    KeyCode::Backspace => app.rename_current_tab_backspace(),
+                    KeyCode::Char(ch)
+                        if !key.modifiers.contains(KeyModifiers::CONTROL)
+                            && !key.modifiers.contains(KeyModifiers::ALT) =>
+                    {
+                        app.rename_current_tab_push_char(ch)
+                    }
+                    _ => {}
+                }
+
+                continue;
+            }
+
             match key_resolver.resolve(key, app.input_mode()) {
                 KeyAction::Command(command) => match command {
                     KeyCommand::ExitApp => break,
@@ -67,6 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     KeyCommand::PrevTab => app.prev_tab(),
                     KeyCommand::Backspace => app.backspace(),
                     KeyCommand::CloseCurrentTab => app.close_current_tab(),
+                    KeyCommand::RenameCurrentTab => app.rename_current_tab(),
                     KeyCommand::ScrollUp => app.scroll_up(scroll_line_step),
                     KeyCommand::ScrollDown => app.scroll_down(scroll_line_step),
                     KeyCommand::PageUp => app.scroll_up(scroll_page_step),

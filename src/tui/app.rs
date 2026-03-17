@@ -25,19 +25,28 @@ pub struct Castellan {
     chats: Vec<ChatState>,
     active_tab: usize,
     input_mode: InputMode,
+    tab_rename_buffer: Option<String>,
 }
 
 impl Default for Castellan {
     fn default() -> Self {
+        let mut first_chat = ChatState::default();
+        first_chat.set_title(Self::default_tab_title(1));
+
         Self {
-            chats: vec![ChatState::default()],
+            chats: vec![first_chat],
             active_tab: 0,
             input_mode: InputMode::Normal,
+            tab_rename_buffer: None,
         }
     }
 }
 
 impl Castellan {
+    fn default_tab_title(index: usize) -> String {
+        format!("chat {}", index)
+    }
+
     fn active_chat(&self) -> &ChatState {
         &self.chats[self.active_tab]
     }
@@ -47,8 +56,16 @@ impl Castellan {
     }
 
     fn tab_labels(&self) -> Vec<String> {
-        (1..=self.chats.len())
-            .map(|index| format!("chat {}", index))
+        self.chats
+            .iter()
+            .enumerate()
+            .map(|(index, chat)| {
+                if index == self.active_tab && let Some(draft) = &self.tab_rename_buffer {
+                    return format!("{}█", draft);
+                }
+
+                chat.title().to_string()
+            })
             .collect()
     }
 
@@ -64,7 +81,8 @@ impl Castellan {
 
     /// enters input mode for text entry.
     pub fn enter_input_mode(&mut self) {
-        self.input_mode = InputMode::Input;
+        self.cancel_current_tab_rename();
+        self.input_mode = InputMode::Insert;
     }
 
     /// exits input mode and returns to command-only mode.
@@ -77,15 +95,59 @@ impl Castellan {
             return;
         }
 
+        self.cancel_current_tab_rename();
         self.chats.remove(self.active_tab);
         if self.active_tab >= self.chats.len() {
             self.active_tab = self.chats.len().saturating_sub(1);
         }
     }
 
+    pub fn rename_current_tab(&mut self) {
+        if self.input_mode != InputMode::Normal || self.tab_rename_buffer.is_some() {
+            return;
+        }
+
+        self.tab_rename_buffer = Some(self.active_chat().title().to_string());
+    }
+
+    pub fn is_renaming_current_tab(&self) -> bool {
+        self.tab_rename_buffer.is_some()
+    }
+
+    pub fn rename_current_tab_push_char(&mut self, ch: char) {
+        if let Some(draft) = &mut self.tab_rename_buffer {
+            draft.push(ch);
+        }
+    }
+
+    pub fn rename_current_tab_backspace(&mut self) {
+        if let Some(draft) = &mut self.tab_rename_buffer {
+            draft.pop();
+        }
+    }
+
+    pub fn commit_current_tab_rename(&mut self) {
+        let Some(draft) = self.tab_rename_buffer.take() else {
+            return;
+        };
+
+        let new_title = draft.trim();
+        if new_title.is_empty() {
+            return;
+        }
+
+        self.active_chat_mut().set_title(new_title.to_string());
+    }
+
+    pub fn cancel_current_tab_rename(&mut self) {
+        self.tab_rename_buffer = None;
+    }
+
     /// creates a new chat tab and focuses it.
     pub fn new_chat_tab(&mut self) {
-        self.chats.push(ChatState::default());
+        let mut chat = ChatState::default();
+        chat.set_title(Self::default_tab_title(self.chats.len() + 1));
+        self.chats.push(chat);
         self.active_tab = self.chats.len().saturating_sub(1);
     }
 

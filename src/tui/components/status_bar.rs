@@ -53,7 +53,7 @@ pub fn render(
                 keybinds.label_for(KeyCommand::ExitApp),
             ),
         ),
-        InputMode::Input => (
+        InputMode::Insert => (
             " insert ",
             dedicated_alt_mode_colour(),
             format!(
