@@ -146,7 +146,7 @@ fn format_location(file: Option<&str>, line: Option<u32>) -> String {
 fn format_level(level: &tracing::Level) -> String {
     let level_text = format!("{:>5}", level.as_str());
 
-    if std::env::var_os("NO_COLOR").is_some() {
+    if std::env::var_os("NO_COLOUR").is_some() {
         return level_text;
     }
 

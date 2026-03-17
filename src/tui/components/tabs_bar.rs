@@ -1,11 +1,11 @@
 use ratatui::{
-    style::{Color, Modifier, Style, Stylize},
+    style::{Modifier, Style, Stylize},
     text::{Line, Span},
     prelude::{Buffer, Rect},
     widgets::{Block, Borders, Paragraph, Widget},
 };
 
-use crate::tui::util::{primary_colour, secondary_colour};
+use crate::tui::util::{dedicated_black_colour, dedicated_grey_colour, primary_colour, secondary_colour};
 
 pub struct TabsBar<'a> {
     tabs: &'a [String],
@@ -31,11 +31,11 @@ impl<'a> TabsBar<'a> {
 
             let style = if index == self.active_tab {
                 Style::default()
-                    .fg(Color::Black)
+                    .fg(dedicated_black_colour())
                     .bg(primary_colour())
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::Gray)
+                Style::default().fg(dedicated_grey_colour())
             };
 
             spans.push(Span::styled(format!(" {} ", label), style));

@@ -1,12 +1,12 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     prelude::{Buffer, Rect},
-    style::{Color, Style, Stylize},
+    style::{Style, Stylize},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Widget},
 };
 
-use crate::input::InputMode;
+use crate::{input::InputMode, tui::util::{dedicated_black_colour, dedicated_mode_colour, dedicated_white_colour}};
 use crate::settings::settings_keybinds::{AppKeybindsSettings, KeyCommand};
 use crate::tui::util::secondary_colour;
 
@@ -37,8 +37,8 @@ pub fn render(
     let (mode_label, mode_bg, mode_fg, center_text) = match input_mode {
         InputMode::Normal => (
             " normal ",
-            Color::Rgb(255, 105, 180),
-            Color::Black,
+            dedicated_mode_colour(),
+            dedicated_black_colour(),
             format!(
                 "{} input | {}/{} switch | {} new | {} close | {}/{} scroll | {} quit",
                 keybinds.label_for(KeyCommand::EnterInputMode),
@@ -53,8 +53,8 @@ pub fn render(
         ),
         InputMode::Input => (
             " input ",
-            Color::White,
-            Color::Black,
+            dedicated_white_colour(),
+            dedicated_black_colour(),
             format!(
                 "{} send | {} normal | {} delete | placeholder: chars and model hint",
                 keybinds.label_for(KeyCommand::Submit),

@@ -9,7 +9,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Widget, Wrap},
 };
 
-use crate::tui::util::secondary_colour;
+use crate::tui::util::{dedicated_dark_grey_colour, secondary_colour};
 
 #[derive(Clone, Debug)]
 /// single row in the transcript with speaker and content.
@@ -269,7 +269,7 @@ impl Widget for ChatWidget<'_> {
         let transcript = if self.state.messages.is_empty() {
             Text::from(Line::styled(
                 "no messages yet. type and press enter to send.",
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(dedicated_dark_grey_colour()),
             ))
         } else {
             let mut lines: Vec<Line<'static>> = Vec::new();

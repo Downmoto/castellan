@@ -4,13 +4,13 @@
 use crate::{
     input::InputMode,
     settings::prelude::settings,
-    tui::components::info_sidebar::InfoSidebar,
+    tui::{components::info_sidebar::InfoSidebar, util::dedicated_black_colour},
 };
 
 use ratatui::{
     layout::{Constraint, Direction, Flex, Layout},
     prelude::Rect,
-    style::{Color, Style},
+    style::{Style},
     widgets::{Block, Widget},
 };
 
@@ -183,7 +183,7 @@ impl Widget for &Castellan {
         Self: Sized,
     {
         Block::default()
-            .style(Style::default().bg(Color::Black))
+            .style(Style::default().bg(dedicated_black_colour()))
             .render(area, buf);
 
         let page = Layout::default()
