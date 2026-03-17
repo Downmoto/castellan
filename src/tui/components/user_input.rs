@@ -1,0 +1,91 @@
+//! dedicated user input component for chat.
+
+use ratatui::{
+    prelude::{Buffer, Rect},
+    style::{Modifier, Style},
+    text::{Line, Span, Text},
+    widgets::{Block, Borders, Paragraph, Widget, Wrap},
+};
+
+use crate::tui::util::{dedicated_grey_colour, dedicated_input_background_colour, primary_colour};
+
+/// wrapped visual line count for a string at fixed width.
+fn wrapped_line_count(text: &str, width: usize) -> usize {
+    if width == 0 {
+        return 0;
+    }
+
+    text.split('\n')
+        .map(|line| {
+            let visual_width = line.chars().count();
+            let cells = visual_width.max(1);
+            (cells - 1) / width + 1
+        })
+        .sum()
+}
+
+/// input widget state adapter for rendering typed content.
+pub struct UserInputWidget<'a> {
+    input: &'a str,
+}
+
+impl<'a> UserInputWidget<'a> {
+    /// creates an input widget over the provided input text.
+    pub fn new(input: &'a str) -> Self {
+        Self { input }
+    }
+
+    /// computes rendered height with borders and wrapped content.
+    pub fn required_height(input: &str, width: u16) -> u16 {
+        if width == 0 {
+            return 1;
+        }
+
+        let inner_width = width.saturating_sub(2).max(1) as usize;
+        let input_with_cursor = if input.is_empty() {
+            "> type a message...|".to_string()
+        } else {
+            format!("> {}|", input)
+        };
+        let wrapped_rows = wrapped_line_count(&input_with_cursor, inner_width).max(1);
+
+        wrapped_rows.saturating_add(2).min(u16::MAX as usize) as u16
+    }
+}
+
+impl Widget for UserInputWidget<'_> {
+    /// renders bordered wrapped input text with a live cursor glyph.
+    fn render(self, area: Rect, buf: &mut Buffer)
+    where
+        Self: Sized,
+    {
+        let block = Block::default()
+            .style(Style::default().bg(dedicated_input_background_colour()))
+            .border_style(Style::default().fg(dedicated_input_background_colour()))
+            .borders(Borders::ALL);
+
+        let cursor_style = Style::default().fg(primary_colour());
+        let input_style = Style::default().fg(primary_colour());
+        let placeholder_style = Style::default()
+            .fg(dedicated_grey_colour())
+            .add_modifier(Modifier::ITALIC);
+
+        let line = if self.input.is_empty() {
+            Line::from(vec![
+                Span::styled("█", cursor_style),
+                Span::styled("type a message...", placeholder_style),
+            ])
+        } else {
+            Line::from(vec![
+                Span::styled(self.input.to_string(), input_style),
+                Span::styled("█", cursor_style),
+            ])
+        };
+
+        Paragraph::new(Text::from(line))
+            .block(block)
+            .style(Style::default().bg(dedicated_input_background_colour()))
+            .wrap(Wrap { trim: false })
+            .render(area, buf);
+    }
+}

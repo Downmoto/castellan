@@ -27,3 +27,7 @@ pub fn dedicated_mode_colour() -> Color {
 pub fn dedicated_alt_mode_colour() -> Color {
     Color::White
 }
+
+pub fn dedicated_input_background_colour() -> Color {
+    Color::Rgb(33, 85, 99)
+}
