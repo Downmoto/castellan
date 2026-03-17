@@ -117,7 +117,7 @@ impl<'a> InfoSidebar<'a> {
         }
 
         let mut lines = Vec::new();
-        let rename_hint_rows = if self.is_renaming { 2 } else { 0 };
+        let rename_hint_rows = if self.is_renaming { 3 } else { 0 };
         let rows_for_tabs = max_rows.saturating_sub(rename_hint_rows);
 
         if self.tabs.is_empty() {
@@ -163,9 +163,13 @@ impl<'a> InfoSidebar<'a> {
         if self.is_renaming {
             if lines.len() < max_rows {
                 lines.push(Line::from(vec![Span::styled(
-                    "renaming: enter save",
+                    "renaming session:",
                     Style::default().fg(primary_colour()).add_modifier(Modifier::BOLD),
                 )]));
+            }
+
+            if lines.len() < max_rows {
+                lines.push(Line::from("enter submit"));
             }
 
             if lines.len() < max_rows {
@@ -199,14 +203,9 @@ impl Widget for InfoSidebar<'_> {
 
         Paragraph::new("metadata / useful info").render(info_area, buf);
 
-        let tabs_title = if self.is_renaming {
-            " sessions renaming "
-        } else {
-            " sessions "
-        };
 
         let tabs_block = Block::default()
-            .title(tabs_title)
+            .title(" sessions ")
             .title_style(Style::default().white().bg(dedicated_input_background_colour()))
             .border_style(Style::default().fg(secondary_colour()))
             .borders(Borders::ALL)
