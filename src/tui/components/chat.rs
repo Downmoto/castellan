@@ -18,9 +18,9 @@ pub struct ChatMessage {
     pub content: String,
 }
 
-#[derive(Default)]
 /// mutable chat domain state used by app events and rendering.
 pub struct ChatState {
+    title: String,
     input: String,
     messages: Vec<ChatMessage>,
     scroll_from_bottom: usize,
@@ -28,7 +28,28 @@ pub struct ChatState {
     transcript_viewport_height: usize,
 }
 
+impl Default for ChatState {
+    fn default() -> Self {
+        Self {
+            title: "chat".to_string(),
+            input: String::new(),
+            messages: Vec::new(),
+            scroll_from_bottom: 0,
+            transcript_viewport_width: 0,
+            transcript_viewport_height: 0,
+        }
+    }
+}
+
 impl ChatState {
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
+    pub fn set_title(&mut self, title: String) {
+        self.title = title;
+    }
+
     /// updates viewport-derived values used for wrapped-line scrolling.
     pub fn set_viewport_from_area(&mut self, area: Rect) {
         let content_width = area.width.saturating_sub(2).max(1) as usize;

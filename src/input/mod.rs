@@ -16,7 +16,7 @@ pub enum InputMode {
     #[default]
     Normal,
     /// Text-entry mode where printable keys are inserted into the input buffer.
-    Input,
+    Insert,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -68,17 +68,20 @@ impl<'a> KeybindResolver<'a> {
                         | KeyCommand::PageUp
                         | KeyCommand::PageDown
                         | KeyCommand::ScrollToBottom
-                        | KeyCommand::CloseCurrentTab => return KeyAction::Command(command),
+                        | KeyCommand::CloseCurrentTab
+                        | KeyCommand::RenameCurrentTab => return KeyAction::Command(command),
                         _ => {}
                     }
                 }
 
                 KeyAction::Noop
             }
-            InputMode::Input => {
+            InputMode::Insert => {
                 if let Some(command) = self.keybinds.resolve_command(&key_event) {
                     match command {
-                        KeyCommand::ExitInputMode | KeyCommand::Backspace | KeyCommand::Submit => {
+                        KeyCommand::ExitInputMode
+                        | KeyCommand::Backspace
+                        | KeyCommand::Submit => {
                             return KeyAction::Command(command);
                         }
                         _ => {}
@@ -135,7 +138,7 @@ mod tests {
 
         let action = resolver.resolve(
             KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE),
-            InputMode::Input,
+            InputMode::Insert,
         );
 
         assert_eq!(action, KeyAction::InsertChar('i'));
@@ -148,7 +151,33 @@ mod tests {
 
         let action = resolver.resolve(
             KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL),
-            InputMode::Input,
+            InputMode::Insert,
+        );
+
+        assert_eq!(action, KeyAction::Noop);
+    }
+
+    #[test]
+    fn rename_tab_shortcut_is_allowed_in_normal_mode() {
+        let keybinds = AppKeybindsSettings::default();
+        let resolver = KeybindResolver::new(&keybinds);
+
+        let action = resolver.resolve(
+            KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL),
+            InputMode::Normal,
+        );
+
+        assert_eq!(action, KeyAction::Command(KeyCommand::RenameCurrentTab));
+    }
+
+    #[test]
+    fn rename_tab_shortcut_is_ignored_in_input_mode() {
+        let keybinds = AppKeybindsSettings::default();
+        let resolver = KeybindResolver::new(&keybinds);
+
+        let action = resolver.resolve(
+            KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL),
+            InputMode::Insert,
         );
 
         assert_eq!(action, KeyAction::Noop);

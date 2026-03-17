@@ -4,7 +4,7 @@ timestamp_mode = "utc"
 
 [scroll]
 line_step = 1
-page_step = 10
+page_step = 25
 
 [keybinds.exit_app]
 code = "c"
@@ -87,5 +87,11 @@ shift = false
 [keybinds.close_current_tab]
 code = "w"
 ctrl = true
+alt = false
+shift = false
+
+[keybinds.rename_current_tab]
+code = "r"
+ctrl = false
 alt = false
 shift = false
