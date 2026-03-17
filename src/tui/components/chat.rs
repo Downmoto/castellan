@@ -2,14 +2,26 @@
 //! this module owns transcript, input, and chat-local scrolling logic.
 
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
+    layout::{Alignment, Constraint, Direction, Layout},
     prelude::{Buffer, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph, Widget, Wrap},
 };
 
-use crate::tui::util::{dedicated_dark_grey_colour, secondary_colour};
+use crate::settings::{
+    prelude::settings,
+    settings_keybinds::{AppKeybindsSettings, KeyCommand},
+};
+use crate::tui::util::{dedicated_dark_grey_colour, primary_colour, secondary_colour};
+
+const CASTELLAN_ASCII: &str = r#"                                             
+                           ▄▄ ▄▄             
+                   █▄       ██ ██            
+                  ▄██▄      ██ ██       ▄    
+ ▄███▀ ▄▀▀█▄ ▄██▀█ ██ ▄█▀█▄ ██ ██ ▄▀▀█▄ ████▄
+ ██    ▄█▀██ ▀███▄ ██ ██▄█▀ ██ ██ ▄█▀██ ██ ██
+▄▀███▄▄▀█▄███▄▄██▀▄██▄▀█▄▄▄▄██▄██▄▀█▄██▄██ ▀█"#;
 
 #[derive(Clone, Debug)]
 /// single row in the transcript with speaker and content.
@@ -220,6 +232,69 @@ fn message_styled_rows(message: &ChatMessage) -> Vec<Line<'static>> {
     rows
 }
 
+fn empty_state_shortcuts(keybinds: &AppKeybindsSettings) -> Vec<(String, &'static str)> {
+    vec![
+        (keybinds.label_for(KeyCommand::NewChatTab), "new tab"),
+        (keybinds.label_for(KeyCommand::CloseCurrentTab), "close tab"),
+        (keybinds.label_for(KeyCommand::EnterInputMode), "insert mode"),
+        (keybinds.label_for(KeyCommand::ExitInputMode), "normal mode"),
+    ]
+}
+
+fn empty_state_lines() -> Vec<Line<'static>> {
+    let mut lines = Vec::new();
+
+    for ascii_line in CASTELLAN_ASCII.lines() {
+        lines.push(Line::styled(
+            ascii_line,
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ));
+    }
+
+    lines.push(Line::raw(""));
+    lines.push(Line::styled(
+        "Keyboard Shortcuts",
+        Style::default()
+            .add_modifier(Modifier::BOLD)
+            .fg(Color::White),
+    ));
+    lines.push(Line::styled(
+        "─".repeat(18),
+        Style::default().fg(dedicated_dark_grey_colour()),
+    ));
+
+    let shortcuts = empty_state_shortcuts(settings().keybinds());
+    let max_key_width = shortcuts
+        .iter()
+        .map(|(key, _)| key.chars().count())
+        .max()
+        .unwrap_or(0);
+    let max_desc_width = shortcuts
+        .iter()
+        .map(|(_, desc)| desc.chars().count())
+        .max()
+        .unwrap_or(0);
+
+    for (key, desc) in shortcuts {
+        lines.push(Line::from(vec![
+            Span::styled(
+                format!("{key:<max_key_width$}  "),
+                Style::default()
+                    .fg(primary_colour())
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!("{desc:<max_desc_width$}"),
+                Style::default().fg(dedicated_dark_grey_colour()),
+            ),
+        ]));
+    }
+
+    lines
+}
+
 /// chat renderer that reads from shared chat state.
 pub struct ChatWidget<'a> {
     state: &'a ChatState,
@@ -266,11 +341,31 @@ impl Widget for ChatWidget<'_> {
             .constraints([Constraint::Min(1), Constraint::Length(1)])
             .split(content_area);
 
-        let transcript = if self.state.messages.is_empty() {
-            Text::from(Line::styled(
-                "no messages yet. type and press enter to send.",
-                Style::default().fg(dedicated_dark_grey_colour()),
-            ))
+        if self.state.messages.is_empty() {
+            let empty_lines = empty_state_lines();
+            let empty_height = empty_lines.len();
+            let available_height = sections[0].height as usize;
+
+            let (top_gap, bottom_gap) = if empty_height >= available_height {
+                (0, 0)
+            } else {
+                let gap = (available_height - empty_height) / 2;
+                (gap, available_height - empty_height - gap)
+            };
+
+            let empty_layout = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(top_gap as u16),
+                    Constraint::Length(empty_height as u16),
+                    Constraint::Length(bottom_gap as u16),
+                ])
+                .split(sections[0]);
+
+            let paragraph = Paragraph::new(Text::from(empty_lines))
+                .alignment(Alignment::Center)
+                .wrap(Wrap { trim: false });
+            paragraph.render(empty_layout[1], buf);
         } else {
             let mut lines: Vec<Line<'static>> = Vec::new();
 
@@ -281,22 +376,21 @@ impl Widget for ChatWidget<'_> {
                 }
             }
 
-            Text::from(lines)
-        };
+            let transcript_height = sections[0].height as usize;
+            let transcript_width = sections[0].width.max(1) as usize;
+            let paragraph = Paragraph::new(Text::from(lines)).wrap(Wrap { trim: false });
+            let total_lines = self
+                .state
+                .total_transcript_lines_for_width(transcript_width);
+            let max_scroll_from_bottom = total_lines.saturating_sub(transcript_height);
+            let clamped_scroll_from_bottom =
+                self.state.scroll_from_bottom.min(max_scroll_from_bottom);
+            let top_scroll = total_lines
+                .saturating_sub(transcript_height.saturating_add(clamped_scroll_from_bottom));
+            let top_scroll = top_scroll.min(u16::MAX as usize) as u16;
 
-        let transcript_height = sections[0].height as usize;
-        let transcript_width = sections[0].width.max(1) as usize;
-        let paragraph = Paragraph::new(transcript).wrap(Wrap { trim: false });
-        let total_lines = self
-            .state
-            .total_transcript_lines_for_width(transcript_width);
-        let max_scroll_from_bottom = total_lines.saturating_sub(transcript_height);
-        let clamped_scroll_from_bottom = self.state.scroll_from_bottom.min(max_scroll_from_bottom);
-        let top_scroll = total_lines
-            .saturating_sub(transcript_height.saturating_add(clamped_scroll_from_bottom));
-        let top_scroll = top_scroll.min(u16::MAX as usize) as u16;
-
-        paragraph.scroll((top_scroll, 0)).render(sections[0], buf);
+            paragraph.scroll((top_scroll, 0)).render(sections[0], buf);
+        }
 
         let input_with_cursor = format!("> {}█", self.state.input);
 
