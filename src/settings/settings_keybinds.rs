@@ -91,7 +91,13 @@ impl KeyChordSettings {
     /// Modifiers are matched exactly. This allows pairs like `j` and
     /// `Shift+j` to coexist without overlapping.
     pub fn matches(&self, key_event: &KeyEvent) -> bool {
-        if !code_matches(self.code, key_event.code) {
+        let (expected_code, expected_shift) = normalize_tab_code(self.code, self.shift);
+        let (actual_code, actual_shift) = normalize_tab_code(
+            key_event.code,
+            key_event.modifiers.contains(KeyModifiers::SHIFT),
+        );
+
+        if !code_matches(expected_code, actual_code) {
             return false;
         }
 
@@ -103,7 +109,7 @@ impl KeyChordSettings {
             return false;
         }
 
-        if key_event.modifiers.contains(KeyModifiers::SHIFT) != self.shift {
+        if actual_shift != expected_shift {
             return false;
         }
 
@@ -129,6 +135,13 @@ impl KeyChordSettings {
         let key_label = key_code_label(self.code);
         parts.push(&key_label);
         parts.join("+")
+    }
+}
+
+fn normalize_tab_code(code: KeyCode, shift: bool) -> (KeyCode, bool) {
+    match code {
+        KeyCode::BackTab => (KeyCode::Tab, true),
+        _ => (code, shift),
     }
 }
 
@@ -251,7 +264,7 @@ fn key_code_label(code: KeyCode) -> String {
     match code {
         KeyCode::Enter => "enter".to_string(),
         KeyCode::Tab => "tab".to_string(),
-        KeyCode::BackTab => "tab".to_string(),
+        KeyCode::BackTab => "backtab".to_string(),
         KeyCode::Backspace => "backspace".to_string(),
         KeyCode::Up => "up".to_string(),
         KeyCode::Down => "down".to_string(),
@@ -371,5 +384,26 @@ mod tests {
 
         assert_eq!(plain, Some(KeyCommand::ScrollDown));
         assert_eq!(shifted, Some(KeyCommand::PageDown));
+    }
+
+    #[test]
+    fn prev_tab_matches_backtab_with_shift_modifier() {
+        let keybinds = AppKeybindsSettings::default();
+
+        let command = keybinds.resolve_command(&KeyEvent::new(
+            KeyCode::BackTab,
+            KeyModifiers::SHIFT,
+        ));
+
+        assert_eq!(command, Some(KeyCommand::PrevTab));
+    }
+
+    #[test]
+    fn prev_tab_matches_shift_tab_encoding() {
+        let keybinds = AppKeybindsSettings::default();
+
+        let command = keybinds.resolve_command(&KeyEvent::new(KeyCode::Tab, KeyModifiers::SHIFT));
+
+        assert_eq!(command, Some(KeyCommand::PrevTab));
     }
 }
