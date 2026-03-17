@@ -1,18 +1,22 @@
 //! app shell composition and event-facing api.
 //! this module owns top-level layout and delegates chat behavior.
 
-use crate::input::InputMode;
+use crate::{
+    input::InputMode,
+    settings::prelude::settings,
+    tui::{components::info_sidebar::InfoSidebar, util::dedicated_black_colour},
+};
 
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Flex, Layout},
     prelude::Rect,
-    style::{Color, Style},
+    style::{Style},
     widgets::{Block, Widget},
 };
 
 use super::components::{
     chat::{ChatState, ChatWidget},
-    info_sidebar, status_bar,
+    status_bar,
     tabs_bar::TabsBar,
 };
 
@@ -170,21 +174,6 @@ impl Castellan {
         self.active_chat_mut().scroll_to_bottom();
     }
 
-    /// builds status text for the shared status bar component.
-    pub fn status_text(&self) -> String {
-        let mode_text = match self.input_mode {
-            InputMode::Normal => "mode: normal",
-            InputMode::Input => "mode: input",
-        };
-
-        format!(
-            "tab {}/{} | {} | {} | normal: i to type | input: esc stop enter submit | tabs: tab/shift+tab new: ctrl+t | quit: ctrl+c",
-            self.active_tab + 1,
-            self.chats.len(),
-            mode_text,
-            self.active_chat().status_text()
-        )
-    }
 }
 
 impl Widget for &Castellan {
@@ -194,7 +183,7 @@ impl Widget for &Castellan {
         Self: Sized,
     {
         Block::default()
-            .style(Style::default().bg(Color::Black))
+            .style(Style::default().bg(dedicated_black_colour()))
             .render(area, buf);
 
         let page = Layout::default()
@@ -204,17 +193,27 @@ impl Widget for &Castellan {
                 Constraint::Length(3),
                 Constraint::Length(3),
             ])
+            .flex(Flex::Start)
+            .spacing(1)
             .split(area);
 
         let columns = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(100), Constraint::Length(30)])
+            .flex(Flex::Center)
+            .spacing(2)
+            .constraints([Constraint::Percentage(100), Constraint::Length(25)])
             .split(page[0]);
 
         ChatWidget::new(self.active_chat()).render(columns[0], buf);
 
-        info_sidebar::render(columns[1], buf);
+        InfoSidebar::new().render(columns[1], buf);
         TabsBar::new(&self.tab_labels(), self.active_tab).render(page[1], buf);
-        status_bar::render(page[2], buf, &self.status_text());
+        status_bar::render(
+            page[2],
+            buf,
+            self.input_mode,
+            &self.active_chat().status_text(),
+            settings().keybinds(),
+        );
     }
 }

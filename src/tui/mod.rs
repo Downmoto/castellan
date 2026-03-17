@@ -2,6 +2,7 @@
 
 pub mod app;
 pub mod components;
+mod util;
 
 /// Convenience imports and setup helpers for terminal-backed UI sessions.
 pub mod prelude {
