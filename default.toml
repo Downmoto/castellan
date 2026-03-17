@@ -92,6 +92,6 @@ shift = false
 
 [keybinds.rename_current_tab]
 code = "r"
-ctrl = false
+ctrl = true
 alt = false
 shift = false

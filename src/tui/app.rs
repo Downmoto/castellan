@@ -17,7 +17,6 @@ use ratatui::{
 use super::components::{
     chat::{ChatState, ChatWidget},
     status_bar,
-    tabs_bar::TabsBar,
 };
 
 /// root tui state for cross-component composition.
@@ -107,7 +106,7 @@ impl Castellan {
             return;
         }
 
-        self.tab_rename_buffer = Some(self.active_chat().title().to_string());
+        self.tab_rename_buffer = Some(String::new());
     }
 
     pub fn is_renaming_current_tab(&self) -> bool {
@@ -175,7 +174,6 @@ impl Castellan {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Percentage(100),
-                Constraint::Length(3),
                 Constraint::Length(3),
             ])
             .split(area);
@@ -253,7 +251,6 @@ impl Widget for &Castellan {
             .constraints([
                 Constraint::Percentage(100),
                 Constraint::Length(3),
-                Constraint::Length(3),
             ])
             .flex(Flex::Start)
             .spacing(1)
@@ -268,10 +265,14 @@ impl Widget for &Castellan {
 
         ChatWidget::new(self.active_chat()).render(columns[0], buf);
 
-        InfoSidebar::new().render(columns[1], buf);
-        TabsBar::new(&self.tab_labels(), self.active_tab).render(page[1], buf);
+        InfoSidebar::new(
+            &self.tab_labels(),
+            self.active_tab,
+            self.is_renaming_current_tab(),
+        )
+        .render(columns[1], buf);
         status_bar::render(
-            page[2],
+            page[1],
             buf,
             self.input_mode,
             &self.active_chat().status_text(),
