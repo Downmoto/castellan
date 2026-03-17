@@ -1,9 +1,11 @@
 use ratatui::{
-    style::{Color, Modifier, Style},
+    style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
     prelude::{Buffer, Rect},
     widgets::{Block, Borders, Paragraph, Widget},
 };
+
+use crate::tui::util::{primary_colour, secondary_colour};
 
 pub struct TabsBar<'a> {
     tabs: &'a [String],
@@ -30,7 +32,7 @@ impl<'a> TabsBar<'a> {
             let style = if index == self.active_tab {
                 Style::default()
                     .fg(Color::Black)
-                    .bg(Color::Yellow)
+                    .bg(primary_colour())
                     .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::Gray)
@@ -48,8 +50,14 @@ impl Widget for TabsBar<'_> {
     where
         Self: Sized,
     {
-        Paragraph::new(self.tab_lines())
-            .block(Block::default().title("tabs").borders(Borders::ALL))
-            .render(area, buf);
+        let frame_block = Block::default()
+            .border_style(Style::default().fg(secondary_colour()))
+            .borders(Borders::ALL)
+            .bg(secondary_colour());
+
+        let content_area = frame_block.inner(area);
+        frame_block.render(area, buf);
+
+        Paragraph::new(self.tab_lines()).render(content_area, buf);
     }
 }

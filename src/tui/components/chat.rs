@@ -2,13 +2,14 @@
 //! this module owns transcript, input, and chat-local scrolling logic.
 
 use ratatui::{
-    layout::{Constraint, Direction, HorizontalAlignment, Layout},
+    layout::{Constraint, Direction, Layout},
     prelude::{Buffer, Rect},
     style::{Color, Modifier, Style, Stylize},
-    symbols::merge::MergeStrategy,
     text::{Line, Span, Text},
-    widgets::{Block, BorderType, Borders, Paragraph, TitlePosition, Widget, Wrap},
+    widgets::{Block, Borders, Paragraph, Widget, Wrap},
 };
+
+use crate::tui::util::secondary_colour;
 
 #[derive(Clone, Debug)]
 /// single row in the transcript with speaker and content.
@@ -253,9 +254,9 @@ impl Widget for ChatWidget<'_> {
         Self: Sized,
     {
         let frame_block = Block::default()
-            .border_style(Style::default().fg(Color::Rgb(30, 30, 30)))
+            .border_style(Style::default().fg(secondary_colour()))
             .borders(Borders::ALL)
-            .bg(Color::Rgb(30, 30, 30));
+            .bg(secondary_colour());
 
         let content_area = frame_block.inner(area);
         frame_block.render(area, buf);

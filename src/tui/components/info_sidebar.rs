@@ -1,6 +1,8 @@
 use ratatui::{
-    prelude::{Buffer, Rect}, style::{Color, Style, Stylize}, widgets::{Block, Borders, Paragraph, Widget}
+    prelude::{Buffer, Rect}, style::{Style, Stylize}, widgets::{Block, Borders, Paragraph, Widget}
 };
+
+use crate::tui::util::secondary_colour;
 
 pub struct InfoSidebar;
 
@@ -16,9 +18,9 @@ impl Widget for InfoSidebar {
             Self: Sized 
     {
         let frame_block = Block::default()
-            .border_style(Style::default().fg(Color::Rgb(30, 30, 30)))
+            .border_style(Style::default().fg(secondary_colour()))
             .borders(Borders::ALL)
-            .bg(Color::Rgb(30, 30, 30));
+            .bg(secondary_colour());
         
         let content_area = frame_block.inner(area);
         frame_block.render(area, buf);

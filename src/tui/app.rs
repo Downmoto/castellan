@@ -4,7 +4,7 @@
 use crate::{input::InputMode, tui::components::info_sidebar::InfoSidebar};
 
 use ratatui::{
-    layout::{Constraint, Direction, Flex, Layout, Spacing},
+    layout::{Constraint, Direction, Flex, Layout},
     prelude::Rect,
     style::{Color, Style},
     widgets::{Block, Widget},
@@ -12,7 +12,7 @@ use ratatui::{
 
 use super::components::{
     chat::{ChatState, ChatWidget},
-    info_sidebar, status_bar,
+    status_bar,
     tabs_bar::TabsBar,
 };
 
@@ -204,6 +204,8 @@ impl Widget for &Castellan {
                 Constraint::Length(3),
                 Constraint::Length(3),
             ])
+            .flex(Flex::Start)
+            .spacing(1)
             .split(area);
 
         let columns = Layout::default()
