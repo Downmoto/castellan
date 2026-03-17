@@ -12,10 +12,6 @@ pub fn dedicated_black_colour() -> Color {
     Color::Black
 }
 
-pub fn dedicated_white_colour() -> Color {
-    Color::White
-}
-
 pub fn dedicated_grey_colour() -> Color {
     Color::Gray
 }
@@ -26,4 +22,8 @@ pub fn dedicated_dark_grey_colour() -> Color {
 
 pub fn dedicated_mode_colour() -> Color {
     Color::Rgb(255, 105, 180)
+}
+
+pub fn dedicated_alt_mode_colour() -> Color {
+    Color::White
 }

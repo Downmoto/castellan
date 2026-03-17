@@ -6,9 +6,12 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Widget},
 };
 
-use crate::{input::InputMode, tui::util::{dedicated_black_colour, dedicated_mode_colour, dedicated_white_colour}};
 use crate::settings::settings_keybinds::{AppKeybindsSettings, KeyCommand};
 use crate::tui::util::secondary_colour;
+use crate::{
+    input::InputMode,
+    tui::util::{dedicated_alt_mode_colour, dedicated_black_colour, dedicated_mode_colour},
+};
 
 pub fn render(
     area: Rect,
@@ -34,13 +37,12 @@ pub fn render(
         ])
         .split(content_area);
 
-    let (mode_label, mode_bg, mode_fg, center_text) = match input_mode {
+    let (mode_label, mode_bg, center_text) = match input_mode {
         InputMode::Normal => (
             " normal ",
             dedicated_mode_colour(),
-            dedicated_black_colour(),
             format!(
-                "{} input | {}/{} switch | {} new | {} close | {}/{} scroll | {} quit",
+                "{} insert | {}/{} switch | {} new | {} close | {}/{} scroll | {} quit",
                 keybinds.label_for(KeyCommand::EnterInputMode),
                 keybinds.label_for(KeyCommand::NextTab),
                 keybinds.label_for(KeyCommand::PrevTab),
@@ -52,9 +54,8 @@ pub fn render(
             ),
         ),
         InputMode::Input => (
-            " input ",
-            dedicated_white_colour(),
-            dedicated_black_colour(),
+            " insert ",
+            dedicated_alt_mode_colour(),
             format!(
                 "{} send | {} normal | {} delete | placeholder: chars and model hint",
                 keybinds.label_for(KeyCommand::Submit),
@@ -64,12 +65,20 @@ pub fn render(
         ),
     };
 
-    Paragraph::new(Line::from(vec![
-        Span::styled(mode_label, Style::default().bg(mode_bg).fg(mode_fg).bold()),
-    ]))
+    Paragraph::new(Line::from(vec![Span::styled(
+        mode_label,
+        Style::default()
+            .bg(mode_bg)
+            .fg(dedicated_black_colour())
+            .bold(),
+    )]))
     .render(sections[0], buf);
 
-    Paragraph::new(center_text).centered().render(sections[1], buf);
+    Paragraph::new(center_text)
+        .centered()
+        .render(sections[1], buf);
 
-    Paragraph::new(scroll_text).right_aligned().render(sections[2], buf);
+    Paragraph::new(scroll_text)
+        .right_aligned()
+        .render(sections[2], buf);
 }
