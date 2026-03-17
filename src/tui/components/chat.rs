@@ -2,11 +2,12 @@
 //! this module owns transcript, input, and chat-local scrolling logic.
 
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, HorizontalAlignment, Layout},
     prelude::{Buffer, Rect},
-    style::{Color, Modifier, Style},
+    style::{Color, Modifier, Style, Stylize},
+    symbols::merge::MergeStrategy,
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Paragraph, Widget, Wrap},
+    widgets::{Block, BorderType, Borders, Paragraph, TitlePosition, Widget, Wrap},
 };
 
 #[derive(Clone, Debug)]
@@ -251,7 +252,11 @@ impl Widget for ChatWidget<'_> {
     where
         Self: Sized,
     {
-        let frame_block = Block::default().title("chat").borders(Borders::ALL);
+        let frame_block = Block::default()
+            .border_style(Style::default().fg(Color::Rgb(30, 30, 30)))
+            .borders(Borders::ALL)
+            .bg(Color::Rgb(30, 30, 30));
+
         let content_area = frame_block.inner(area);
         frame_block.render(area, buf);
 
@@ -285,10 +290,7 @@ impl Widget for ChatWidget<'_> {
             .state
             .total_transcript_lines_for_width(transcript_width);
         let max_scroll_from_bottom = total_lines.saturating_sub(transcript_height);
-        let clamped_scroll_from_bottom = self
-            .state
-            .scroll_from_bottom
-            .min(max_scroll_from_bottom);
+        let clamped_scroll_from_bottom = self.state.scroll_from_bottom.min(max_scroll_from_bottom);
         let top_scroll = total_lines
             .saturating_sub(transcript_height.saturating_add(clamped_scroll_from_bottom));
         let top_scroll = top_scroll.min(u16::MAX as usize) as u16;

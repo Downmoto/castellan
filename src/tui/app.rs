@@ -1,10 +1,10 @@
 //! app shell composition and event-facing api.
 //! this module owns top-level layout and delegates chat behavior.
 
-use crate::input::InputMode;
+use crate::{input::InputMode, tui::components::info_sidebar::InfoSidebar};
 
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Flex, Layout, Spacing},
     prelude::Rect,
     style::{Color, Style},
     widgets::{Block, Widget},
@@ -208,12 +208,14 @@ impl Widget for &Castellan {
 
         let columns = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(100), Constraint::Length(30)])
+            .flex(Flex::Center)
+            .spacing(2)
+            .constraints([Constraint::Percentage(100), Constraint::Length(25)])
             .split(page[0]);
 
         ChatWidget::new(self.active_chat()).render(columns[0], buf);
 
-        info_sidebar::render(columns[1], buf);
+        InfoSidebar::new().render(columns[1], buf);
         TabsBar::new(&self.tab_labels(), self.active_tab).render(page[1], buf);
         status_bar::render(page[2], buf, &self.status_text());
     }
