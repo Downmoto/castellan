@@ -201,7 +201,7 @@ impl Widget for &Castellan {
             .direction(Direction::Horizontal)
             .flex(Flex::Center)
             .spacing(2)
-            .constraints([Constraint::Percentage(100), Constraint::Length(25)])
+            .constraints([Constraint::Percentage(100), Constraint::Length(40)])
             .split(page[0]);
 
         ChatWidget::new(self.active_chat()).render(columns[0], buf);

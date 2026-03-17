@@ -330,8 +330,7 @@ impl Widget for ChatWidget<'_> {
     {
         let frame_block = Block::default()
             .border_style(Style::default().fg(secondary_colour()))
-            .borders(Borders::ALL)
-            .bg(secondary_colour());
+            .borders(Borders::ALL);
 
         let content_area = frame_block.inner(area);
         frame_block.render(area, buf);
