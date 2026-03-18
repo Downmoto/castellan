@@ -6,7 +6,7 @@ use ratatui::{
     prelude::{Buffer, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Paragraph, Widget, Wrap},
+    widgets::{Paragraph, Widget, Wrap},
 };
 
 use crate::settings::{
@@ -14,7 +14,7 @@ use crate::settings::{
     settings_keybinds::{AppKeybindsSettings, KeyCommand},
 };
 use crate::tui::components::user_input::UserInputWidget;
-use crate::tui::util::{dedicated_dark_grey_colour, primary_colour, secondary_colour};
+use crate::tui::util::{dedicated_dark_grey_colour, primary_colour};
 
 const CASTELLAN_ASCII: &str = r#"                                             
                            ▄▄ ▄▄             
@@ -350,21 +350,14 @@ impl Widget for ChatWidget<'_> {
     where
         Self: Sized,
     {
-        let frame_block = Block::default()
-            .border_style(Style::default().fg(secondary_colour()))
-            .borders(Borders::ALL);
-
-        let content_area = frame_block.inner(area);
-        frame_block.render(area, buf);
-
-        let mut input_height = UserInputWidget::required_height(&self.state.input, content_area.width);
-        let max_input_height = content_area.height.saturating_sub(1).max(1);
+        let mut input_height = UserInputWidget::required_height(&self.state.input, area.width);
+        let max_input_height = area.height.saturating_sub(1).max(1);
         input_height = input_height.min(max_input_height);
 
         let sections = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Min(1), Constraint::Length(input_height)])
-            .split(content_area);
+            .split(area);
 
         if self.state.messages.is_empty() {
             let empty_lines = empty_state_lines();

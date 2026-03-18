@@ -250,7 +250,7 @@ impl Widget for &Castellan {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Percentage(100),
-                Constraint::Length(3),
+                Constraint::Length(1),
             ])
             .flex(Flex::Start)
             .spacing(1)
@@ -260,7 +260,7 @@ impl Widget for &Castellan {
             .direction(Direction::Horizontal)
             .flex(Flex::Center)
             .spacing(2)
-            .constraints([Constraint::Percentage(100), Constraint::Length(40)])
+            .constraints([Constraint::Percentage(100), Constraint::Length(30)])
             .split(page[0]);
 
         ChatWidget::new(self.active_chat()).render(columns[0], buf);
@@ -271,6 +271,7 @@ impl Widget for &Castellan {
             self.is_renaming_current_tab(),
         )
         .render(columns[1], buf);
+
         status_bar::render(
             page[1],
             buf,
