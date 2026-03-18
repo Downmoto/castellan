@@ -5,10 +5,9 @@
 //! navigation shortcuts in normal mode do not interfere with text entry in
 //! input mode.
 
-use crate::settings::settings_keybinds::AppKeybindsSettings;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crate::settings::settings_keybinds::{KeyCommand, AppKeybindsSettings} ;
 
-pub use crate::settings::settings_keybinds::KeyCommand;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum InputMode {

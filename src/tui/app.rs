@@ -2,23 +2,25 @@
 //! this module owns top-level layout and delegates chat behavior.
 
 use crate::{
-    input::{InputMode, KeyCommand},
+    input::InputMode,
     settings::prelude::settings,
-    tui::{components::info_sidebar::InfoSidebar, util::dedicated_black_colour},
+    settings::settings_keybinds::KeyCommand,
+    tui::{
+        components::{
+            chat::{ChatState, ChatWidget},
+            info_sidebar::InfoSidebar,
+            status_bar,
+        },
+        util::dedicated_black_colour,
+    },
 };
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-
 use ratatui::{
     layout::{Constraint, Direction, Flex, Layout},
     prelude::Rect,
     style::Style,
     widgets::{Block, Widget},
-};
-
-use super::components::{
-    chat::{ChatState, ChatWidget},
-    status_bar,
 };
 
 pub enum CommandResult {
@@ -46,7 +48,6 @@ impl ChatTabs {
     fn default_tab_title(index: usize) -> String {
         format!("chat {}", index)
     }
-
 
     fn active_index(&self) -> usize {
         self.active_tab

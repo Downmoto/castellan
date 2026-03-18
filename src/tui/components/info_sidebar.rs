@@ -3,6 +3,14 @@
 //! - a top info area for metadata/status content.
 //! - a bottom sessions area that lists chat tabs and rename hints.
 
+use crate::tui::util::{
+    dedicated_black_colour, 
+    dedicated_grey_colour, 
+    dedicated_input_background_colour, 
+    primary_colour, 
+    secondary_colour
+};
+
 use ratatui::{
     layout::{Constraint, Direction, Layout, Margin},
     prelude::{Buffer, Rect},
@@ -10,8 +18,6 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Paragraph, Widget},
 };
-
-use crate::tui::util::{dedicated_black_colour, dedicated_grey_colour, dedicated_input_background_colour, primary_colour, secondary_colour};
 
 /// renders the right-side panel containing info and session tabs.
 ///

@@ -1,11 +1,11 @@
 //! user request message rendering helpers.
 
+use crate::tui::util::secondary_colour;
+
 use ratatui::{
     style::{Color, Style},
     text::{Line, Span},
 };
-
-use crate::tui::util::secondary_colour;
 
 const HORIZONTAL_PADDING: usize = 1;
 

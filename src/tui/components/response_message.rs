@@ -1,8 +1,8 @@
 //! assistant response message rendering helpers.
 
-use ratatui::text::{Line, Span};
-
 use crate::tui::util::dedicated_dark_grey_colour;
+
+use ratatui::text::{Line, Span};
 
 const RESPONSE_LINE_PREFIX: &str = "│";
 

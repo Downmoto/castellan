@@ -1,5 +1,12 @@
 //! dedicated user input component for chat.
 
+use crate::tui::util::{
+    dedicated_grey_colour, 
+    dedicated_input_background_colour, 
+    primary_colour, 
+    wrapped_line_count,
+};
+
 use ratatui::{
     layout::Margin,
     prelude::{Buffer, Rect},
@@ -7,9 +14,6 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Block, Paragraph, Widget, Wrap},
 };
-
-use crate::tui::util::wrapped_line_count;
-use crate::tui::util::{dedicated_grey_colour, dedicated_input_background_colour, primary_colour};
 
 /// input widget state adapter for rendering typed content.
 pub struct UserInputWidget<'a> {

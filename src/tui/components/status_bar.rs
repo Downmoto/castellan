@@ -1,11 +1,3 @@
-use ratatui::{
-    layout::{Constraint, Direction, Layout, Margin},
-    prelude::{Buffer, Rect},
-    style::Style,
-    text::{Line, Span},
-    widgets::{Paragraph, Widget},
-};
-
 use crate::{
     input::InputMode,
     settings::settings_keybinds::{AppKeybindsSettings, KeyCommand},
@@ -14,6 +6,14 @@ use crate::{
         dedicated_black_colour, 
         dedicated_mode_colour, 
     },
+};
+
+use ratatui::{
+    layout::{Constraint, Direction, Layout, Margin},
+    prelude::{Buffer, Rect},
+    style::Style,
+    text::{Line, Span},
+    widgets::{Paragraph, Widget},
 };
 
 pub fn render(

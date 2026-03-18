@@ -3,13 +3,14 @@ pub mod settings_keybinds;
 pub mod settings_scroll;
 
 pub mod prelude {
+    use std::sync::OnceLock;
+
     use crate::settings::settings_logging::AppLogSettings;
     use crate::settings::settings_keybinds::AppKeybindsSettings;
     use crate::settings::settings_scroll::AppScrollSettings;
 
     use config::Config;
     use serde::Deserialize;
-    use std::sync::OnceLock;
     use thiserror::Error;
 
     struct SettingsState {

@@ -1,6 +1,21 @@
 //! chat state and rendering primitives.
 //! this module owns transcript, input, and chat-local scrolling logic.
 
+use crate::{
+    settings::{
+        prelude::settings,
+        settings_keybinds::{AppKeybindsSettings, KeyCommand},
+    },
+    tui::{
+        components::{
+            request_message::RequestMessageWidget, 
+            response_message::ResponseMessageWidget,
+            user_input::UserInputWidget,
+        },
+        util::{dedicated_dark_grey_colour, primary_colour, wrapped_line_count},
+    },
+};
+
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Margin},
     prelude::{Buffer, Rect},
@@ -8,16 +23,6 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Paragraph, Widget, Wrap},
 };
-
-use crate::settings::{
-    prelude::settings,
-    settings_keybinds::{AppKeybindsSettings, KeyCommand},
-};
-use crate::tui::components::request_message::RequestMessageWidget;
-use crate::tui::components::response_message::ResponseMessageWidget;
-use crate::tui::util::wrapped_line_count;
-use crate::tui::components::user_input::UserInputWidget;
-use crate::tui::util::{dedicated_dark_grey_colour, primary_colour};
 
 const CASTELLAN_ASCII: &str = r#"                                             
                            ▄▄ ▄▄             
@@ -253,22 +258,31 @@ fn with_message_widget<T>(
 }
 
 fn message_plain_rows(message: &ChatMessage, width: usize) -> Vec<String> {
-    with_message_widget(message, width, |widget| widget.plain_rows(), |widget| {
-        widget.plain_rows()
-    })
+    with_message_widget(
+        message,
+        width,
+        |widget| widget.plain_rows(),
+        |widget| widget.plain_rows(),
+    )
 }
 
 fn message_styled_rows(message: &ChatMessage, width: usize) -> Vec<Line<'static>> {
-    with_message_widget(message, width, |widget| widget.styled_rows(), |widget| {
-        widget.styled_rows()
-    })
+    with_message_widget(
+        message,
+        width,
+        |widget| widget.styled_rows(),
+        |widget| widget.styled_rows(),
+    )
 }
 
 fn empty_state_shortcuts(keybinds: &AppKeybindsSettings) -> Vec<(String, &'static str)> {
     vec![
         (keybinds.label_for(KeyCommand::NewChatTab), "new tab"),
         (keybinds.label_for(KeyCommand::CloseCurrentTab), "close tab"),
-        (keybinds.label_for(KeyCommand::EnterInputMode), "insert mode"),
+        (
+            keybinds.label_for(KeyCommand::EnterInputMode),
+            "insert mode",
+        ),
         (keybinds.label_for(KeyCommand::ExitInputMode), "normal mode"),
     ]
 }
@@ -351,7 +365,10 @@ impl Widget for ChatWidget<'_> {
             .direction(Direction::Vertical)
             .constraints([Constraint::Min(1), Constraint::Length(input_height)])
             .spacing(1)
-            .split(area.inner(Margin { horizontal: 1, vertical: 0 }));
+            .split(area.inner(Margin {
+                horizontal: 1,
+                vertical: 0,
+            }));
 
         if self.state.transcript.is_empty() {
             let empty_lines = empty_state_lines();

@@ -1,7 +1,7 @@
 use castellan::logging::prelude::*;
+use castellan::settings::prelude::*;
 use castellan::input::{KeyAction, KeybindResolver};
 use castellan::llm::{AssistantReply, LlmService};
-use castellan::settings::prelude::*;
 use castellan::tui::{app::{Castellan, CommandResult}, prelude::*};
 
 use crossterm::event::{self as c_event, Event, KeyEventKind};
