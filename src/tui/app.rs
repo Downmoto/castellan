@@ -35,13 +35,18 @@ struct ChatTabs {
 impl ChatTabs {
     fn with_first_tab() -> Self {
         let mut first_chat = ChatState::default();
-        first_chat.set_title(Castellan::default_tab_title(1));
+        first_chat.set_title(ChatTabs::default_tab_title(1));
 
         Self {
             chats: vec![first_chat],
             active_tab: 0,
         }
     }
+
+    fn default_tab_title(index: usize) -> String {
+        format!("chat {}", index)
+    }
+
 
     fn active_index(&self) -> usize {
         self.active_tab
@@ -76,7 +81,7 @@ impl ChatTabs {
 
     fn add_new_chat(&mut self) {
         let mut chat = ChatState::default();
-        chat.set_title(Castellan::default_tab_title(self.chats.len() + 1));
+        chat.set_title(ChatTabs::default_tab_title(self.chats.len() + 1));
         self.chats.push(chat);
         self.active_tab = self.chats.len().saturating_sub(1);
     }
@@ -102,7 +107,9 @@ impl ChatTabs {
             .iter()
             .enumerate()
             .map(|(index, chat)| {
-                if index == self.active_tab && let RenameState::Active(draft) = rename_state {
+                if index == self.active_tab
+                    && let RenameState::Active(draft) = rename_state
+                {
                     return format!("{}█", draft);
                 }
 
@@ -164,7 +171,7 @@ impl RenameState {
 /// root tui state for cross-component composition.
 pub struct Castellan {
     tabs: ChatTabs,
-    input_mode: InputMode,
+    pub input_mode: InputMode,
     rename_state: RenameState,
 }
 
@@ -194,43 +201,6 @@ impl Castellan {
             .split(page[0]);
 
         (columns[0], columns[1], page[1])
-    }
-
-    fn default_tab_title(index: usize) -> String {
-        format!("chat {}", index)
-    }
-
-    fn active_chat(&self) -> &ChatState {
-        self.tabs.active()
-    }
-
-    fn active_chat_mut(&mut self) -> &mut ChatState {
-        self.tabs.active_mut()
-    }
-
-    fn tab_labels(&self) -> Vec<String> {
-        self.tabs.labels(&self.rename_state)
-    }
-
-    /// returns the current active chat index.
-    pub fn active_tab_index(&self) -> usize {
-        self.tabs.active_index()
-    }
-
-    /// returns the current global input mode.
-    pub fn input_mode(&self) -> InputMode {
-        self.input_mode
-    }
-
-    /// enters input mode for text entry.
-    pub fn enter_input_mode(&mut self) {
-        self.cancel_current_tab_rename();
-        self.input_mode = InputMode::Insert;
-    }
-
-    /// exits input mode and returns to command-only mode.
-    pub fn exit_input_mode(&mut self) {
-        self.input_mode = InputMode::Normal;
     }
 
     pub fn close_current_tab(&mut self) {
@@ -263,26 +233,11 @@ impl Castellan {
             return;
         };
 
-        self.active_chat_mut().set_title(new_title);
+        self.tabs.active_mut().set_title(new_title);
     }
 
     pub fn cancel_current_tab_rename(&mut self) {
         self.rename_state.cancel();
-    }
-
-    /// creates a new chat tab and focuses it.
-    pub fn new_chat_tab(&mut self) {
-        self.tabs.add_new_chat();
-    }
-
-    /// switches focus to the next chat tab.
-    pub fn next_tab(&mut self) {
-        self.tabs.next();
-    }
-
-    /// switches focus to the previous chat tab.
-    pub fn prev_tab(&mut self) {
-        self.tabs.prev();
     }
 
     /// updates chat viewport metrics from the current terminal area.
@@ -322,25 +277,24 @@ impl Castellan {
         scroll_page_step: usize,
     ) -> CommandResult {
         match command {
-            KeyCommand::ExitApp => CommandResult::Exit,
             KeyCommand::EnterInputMode => {
-                self.enter_input_mode();
+                self.input_mode = InputMode::Insert;
                 CommandResult::None
             }
             KeyCommand::ExitInputMode => {
-                self.exit_input_mode();
+                self.input_mode = InputMode::Normal;
                 CommandResult::None
             }
             KeyCommand::NewChatTab => {
-                self.new_chat_tab();
+                self.tabs.add_new_chat();
                 CommandResult::None
             }
             KeyCommand::NextTab => {
-                self.next_tab();
+                self.tabs.next();
                 CommandResult::None
             }
             KeyCommand::PrevTab => {
-                self.prev_tab();
+                self.tabs.prev();
                 CommandResult::None
             }
             KeyCommand::Backspace => {
@@ -356,25 +310,26 @@ impl Castellan {
                 CommandResult::None
             }
             KeyCommand::ScrollUp => {
-                self.scroll_up(scroll_line_step);
+                self.tabs.active_mut().scroll_up(scroll_line_step);
                 CommandResult::None
             }
             KeyCommand::ScrollDown => {
-                self.scroll_down(scroll_line_step);
+                self.tabs.active_mut().scroll_down(scroll_line_step);
                 CommandResult::None
             }
             KeyCommand::PageUp => {
-                self.scroll_up(scroll_page_step);
+                self.tabs.active_mut().scroll_up(scroll_page_step);
                 CommandResult::None
             }
             KeyCommand::PageDown => {
-                self.scroll_down(scroll_page_step);
+                self.tabs.active_mut().scroll_down(scroll_page_step);
                 CommandResult::None
             }
             KeyCommand::ScrollToBottom => {
-                self.scroll_to_bottom();
+                self.tabs.active_mut().scroll_to_bottom();
                 CommandResult::None
             }
+            KeyCommand::ExitApp => CommandResult::Exit,
             KeyCommand::Submit => {
                 let Some((tab_index, message)) = self.take_input_for_submit() else {
                     return CommandResult::None;
@@ -390,25 +345,26 @@ impl Castellan {
 impl Castellan {
     /// appends a typed character to the chat input buffer.
     pub fn push_char(&mut self, ch: char) {
-        self.active_chat_mut().push_char(ch);
+        self.tabs.active_mut().push_char(ch);
     }
 
     /// removes the last character from the chat input buffer.
     pub fn backspace(&mut self) {
-        self.active_chat_mut().backspace();
+        self.tabs.active_mut().backspace();
     }
 
     /// returns a trimmed message if submit is valid and clears input.
     pub fn take_input_for_submit(&mut self) -> Option<(usize, String)> {
         let active_tab = self.tabs.active_index();
-        self.active_chat_mut()
+        self.tabs
+            .active_mut()
             .take_input_for_submit()
             .map(|message| (active_tab, message))
     }
 
     /// appends a user-authored message to the transcript.
     pub fn push_user_message(&mut self, content: String) {
-        self.active_chat_mut().push_user_message(content);
+        self.tabs.active_mut().push_user_message(content);
     }
 
     /// appends an assistant-authored message to the transcript.
@@ -417,22 +373,6 @@ impl Castellan {
             chat.push_assistant_message(content);
         }
     }
-
-    /// scrolls transcript upward by the requested number of wrapped lines.
-    pub fn scroll_up(&mut self, lines: usize) {
-        self.active_chat_mut().scroll_up(lines);
-    }
-
-    /// scrolls transcript downward by the requested number of wrapped lines.
-    pub fn scroll_down(&mut self, lines: usize) {
-        self.active_chat_mut().scroll_down(lines);
-    }
-
-    /// resets transcript scroll to the newest message.
-    pub fn scroll_to_bottom(&mut self) {
-        self.active_chat_mut().scroll_to_bottom();
-    }
-
 }
 
 impl Widget for &Castellan {
@@ -447,10 +387,10 @@ impl Widget for &Castellan {
 
         let (chat_area, sidebar_area, status_area) = Castellan::layout_regions(area);
 
-        ChatWidget::new(self.active_chat()).render(chat_area, buf);
+        ChatWidget::new(self.tabs.active()).render(chat_area, buf);
 
         InfoSidebar::new(
-            &self.tab_labels(),
+            &self.tabs.labels(&self.rename_state),
             self.tabs.active_index(),
             self.is_renaming_current_tab(),
         )
@@ -460,7 +400,7 @@ impl Widget for &Castellan {
             status_area,
             buf,
             self.input_mode,
-            &self.active_chat().status_text(),
+            &self.tabs.active().status_text(),
             &settings().keybinds,
         );
     }

@@ -58,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
 
-            match key_resolver.resolve(key, app.input_mode()) {
+            match key_resolver.resolve(key, app.input_mode) {
                 KeyAction::Command(command) => {
                     match app.apply_command(command, scroll_line_step, scroll_page_step) {
                         CommandResult::Exit => break,
