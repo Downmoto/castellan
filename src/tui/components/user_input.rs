@@ -8,22 +8,8 @@ use ratatui::{
     widgets::{Block, Paragraph, Widget, Wrap},
 };
 
+use crate::tui::util::wrapped_line_count;
 use crate::tui::util::{dedicated_grey_colour, dedicated_input_background_colour, primary_colour};
-
-/// wrapped visual line count for a string at fixed width.
-fn wrapped_line_count(text: &str, width: usize) -> usize {
-    if width == 0 {
-        return 0;
-    }
-
-    text.split('\n')
-        .map(|line| {
-            let visual_width = line.chars().count();
-            let cells = visual_width.max(1);
-            (cells - 1) / width + 1
-        })
-        .sum()
-}
 
 /// input widget state adapter for rendering typed content.
 pub struct UserInputWidget<'a> {

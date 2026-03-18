@@ -31,3 +31,17 @@ pub fn dedicated_alt_mode_colour() -> Color {
 pub fn dedicated_input_background_colour() -> Color {
     Color::Rgb(33, 85, 99)
 }
+
+pub fn wrapped_line_count(text: &str, width: usize) -> usize {
+    if width == 0 {
+        return 0;
+    }
+
+    text.split('\n')
+        .map(|line| {
+            let visual_width = line.chars().count();
+            let cells = visual_width.max(1);
+            (cells - 1) / width + 1
+        })
+        .sum()
+}

@@ -29,6 +29,35 @@ pub enum KeyAction {
     Noop,
 }
 
+fn command_allowed_in_mode(command: KeyCommand, mode: InputMode) -> bool {
+    match mode {
+        InputMode::Normal => matches!(
+            command,
+            KeyCommand::ExitApp
+                | KeyCommand::EnterInputMode
+                | KeyCommand::NewChatTab
+                | KeyCommand::NextTab
+                | KeyCommand::PrevTab
+                | KeyCommand::ScrollUp
+                | KeyCommand::ScrollDown
+                | KeyCommand::PageUp
+                | KeyCommand::PageDown
+                | KeyCommand::ScrollToBottom
+                | KeyCommand::CloseCurrentTab
+                | KeyCommand::RenameCurrentTab
+        ),
+        InputMode::Insert => matches!(
+            command,
+            KeyCommand::ExitInputMode
+                | KeyCommand::Backspace
+                | KeyCommand::NextTab
+                | KeyCommand::PrevTab
+                | KeyCommand::ExitApp
+                | KeyCommand::Submit
+        ),
+    }
+}
+
 /// Resolves `KeyEvent` values into mode-specific [`KeyAction`] values.
 ///
 /// The resolver is intentionally strict in `InputMode::Input`: it allows only
@@ -54,51 +83,15 @@ impl<'a> KeybindResolver<'a> {
     /// - `Ctrl` or `Alt` modified characters are ignored while typing to avoid
     ///   accidental command execution from text-entry mode.
     pub fn resolve(&self, key_event: KeyEvent, mode: InputMode) -> KeyAction {
+        if let Some(command) = self.keybinds.resolve_command(&key_event)
+            && command_allowed_in_mode(command, mode)
+        {
+            return KeyAction::Command(command);
+        }
+
         match mode {
-            InputMode::Normal => {
-                if let Some(command) = self.keybinds.resolve_command(&key_event) {
-                    match command {
-                        KeyCommand::ExitApp
-                        | KeyCommand::EnterInputMode
-                        | KeyCommand::NewChatTab
-                        | KeyCommand::NextTab
-                        | KeyCommand::PrevTab
-                        | KeyCommand::ScrollUp
-                        | KeyCommand::ScrollDown
-                        | KeyCommand::PageUp
-                        | KeyCommand::PageDown
-                        | KeyCommand::ScrollToBottom
-                        | KeyCommand::CloseCurrentTab
-                        | KeyCommand::RenameCurrentTab => return KeyAction::Command(command),
-                        _ => {}
-                    }
-                }
-
-                KeyAction::Noop
-            }
+            InputMode::Normal => KeyAction::Noop,
             InputMode::Insert => {
-                if let Some(command) = self.keybinds.resolve_command(&key_event) {
-                    match command {
-                        KeyCommand::ExitInputMode
-                        | KeyCommand::Backspace
-                        | KeyCommand::NextTab
-                        | KeyCommand::PrevTab
-                        | KeyCommand::ExitApp
-                        | KeyCommand::Submit => {
-                            return KeyAction::Command(command);
-                        }
-                        _ => {}
-                    }
-                }
-
-                if self.keybinds.backspace.matches(&key_event) {
-                    return KeyAction::Command(KeyCommand::Backspace);
-                }
-
-                if self.keybinds.submit.matches(&key_event) {
-                    return KeyAction::Command(KeyCommand::Submit);
-                }
-
                 if let KeyCode::Char(ch) = key_event.code {
                     if key_event.modifiers.contains(KeyModifiers::CONTROL)
                         || key_event.modifiers.contains(KeyModifiers::ALT)

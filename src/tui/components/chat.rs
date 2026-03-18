@@ -15,6 +15,7 @@ use crate::settings::{
 };
 use crate::tui::components::request_message::RequestMessageWidget;
 use crate::tui::components::response_message::ResponseMessageWidget;
+use crate::tui::util::wrapped_line_count;
 use crate::tui::components::user_input::UserInputWidget;
 use crate::tui::util::{dedicated_dark_grey_colour, primary_colour};
 
@@ -27,9 +28,15 @@ const CASTELLAN_ASCII: &str = r#"
 ▄▀███▄▄▀█▄███▄▄██▀▄██▄▀█▄▄▄▄██▄██▄▀█▄██▄██ ▀█"#;
 
 #[derive(Clone, Debug)]
+pub enum ChatSender {
+    User,
+    Assistant,
+}
+
+#[derive(Clone, Debug)]
 /// single row in the transcript with speaker and content.
 pub struct ChatMessage {
-    pub sender: String,
+    pub sender: ChatSender,
     pub content: String,
 }
 
@@ -102,7 +109,7 @@ impl ChatState {
     /// appends a user message and anchors transcript to bottom.
     pub fn push_user_message(&mut self, content: String) {
         self.messages.push(ChatMessage {
-            sender: "you".to_string(),
+            sender: ChatSender::User,
             content,
         });
         self.scroll_to_bottom();
@@ -111,7 +118,7 @@ impl ChatState {
     /// appends an assistant message and anchors transcript to bottom.
     pub fn push_assistant_message(&mut self, content: String) {
         self.messages.push(ChatMessage {
-            sender: "assistant".to_string(),
+            sender: ChatSender::Assistant,
             content,
         });
         self.scroll_to_bottom();
@@ -187,18 +194,18 @@ impl ChatState {
 }
 
 fn message_plain_rows(message: &ChatMessage, width: usize) -> Vec<String> {
-    match message.sender.as_str() {
-        "you" => RequestMessageWidget::new(&message.content, width).plain_rows(),
-        "assistant" => ResponseMessageWidget::new(&message.content, width).plain_rows(),
-        _ => ResponseMessageWidget::new(&message.content, width).plain_rows(),
+    match message.sender {
+        ChatSender::User => RequestMessageWidget::new(&message.content, width).plain_rows(),
+        ChatSender::Assistant => ResponseMessageWidget::new(&message.content, width).plain_rows(),
     }
 }
 
 fn message_styled_rows(message: &ChatMessage, width: usize) -> Vec<Line<'static>> {
-    match message.sender.as_str() {
-        "you" => RequestMessageWidget::new(&message.content, width).styled_rows(),
-        "assistant" => ResponseMessageWidget::new(&message.content, width).styled_rows(),
-        _ => ResponseMessageWidget::new(&message.content, width).styled_rows(),
+    match message.sender {
+        ChatSender::User => RequestMessageWidget::new(&message.content, width).styled_rows(),
+        ChatSender::Assistant => {
+            ResponseMessageWidget::new(&message.content, width).styled_rows()
+        }
     }
 }
 
@@ -275,21 +282,6 @@ impl<'a> ChatWidget<'a> {
     pub fn new(state: &'a ChatState) -> Self {
         Self { state }
     }
-}
-
-/// counts wrapped visual lines for a string at a fixed width.
-fn wrapped_line_count(text: &str, width: usize) -> usize {
-    if width == 0 {
-        return 0;
-    }
-
-    text.split('\n')
-        .map(|line| {
-            let visual_width = line.chars().count();
-            let cells = visual_width.max(1);
-            (cells - 1) / width + 1
-        })
-        .sum()
 }
 
 impl Widget for ChatWidget<'_> {
