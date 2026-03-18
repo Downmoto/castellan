@@ -1,10 +1,11 @@
 //! dedicated user input component for chat.
 
 use ratatui::{
+    layout::Margin,
     prelude::{Buffer, Rect},
-    style::{Modifier, Style},
+    style::{Modifier, Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Paragraph, Widget, Wrap},
+    widgets::{Block, Paragraph, Widget, Wrap},
 };
 
 use crate::tui::util::{dedicated_grey_colour, dedicated_input_background_colour, primary_colour};
@@ -59,10 +60,9 @@ impl Widget for UserInputWidget<'_> {
     where
         Self: Sized,
     {
-        let block = Block::default()
-            .style(Style::default().bg(dedicated_input_background_colour()))
-            .border_style(Style::default().fg(dedicated_input_background_colour()))
-            .borders(Borders::ALL);
+        Block::default()
+            .bg(dedicated_input_background_colour())
+            .render(area, buf);
 
         let cursor_style = Style::default().fg(primary_colour());
         let input_style = Style::default().fg(primary_colour());
@@ -83,9 +83,14 @@ impl Widget for UserInputWidget<'_> {
         };
 
         Paragraph::new(Text::from(line))
-            .block(block)
             .style(Style::default().bg(dedicated_input_background_colour()))
             .wrap(Wrap { trim: false })
-            .render(area, buf);
+            .render(
+                area.inner(Margin {
+                    horizontal: 1,
+                    vertical: 1,
+                }),
+                buf,
+            );
     }
 }

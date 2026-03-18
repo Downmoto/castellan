@@ -4,11 +4,11 @@
 //! - a bottom sessions area that lists chat tabs and rename hints.
 
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Margin},
     prelude::{Buffer, Rect},
     style::{Modifier, Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, Borders, Padding, Paragraph, Widget},
+    widgets::{Block, Paragraph, Widget},
 };
 
 use crate::tui::util::{dedicated_black_colour, dedicated_grey_colour, dedicated_input_background_colour, primary_colour, secondary_colour};
@@ -193,27 +193,21 @@ impl Widget for InfoSidebar<'_> {
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(area);
 
-        let info_block = Block::default()
-            .border_style(Style::default().fg(secondary_colour()))
-            .borders(Borders::ALL)
-            .bg(secondary_colour());
+        Block::default()
+            .bg(secondary_colour())
+            .render(sections[0], buf);
 
-        let info_area = info_block.inner(sections[0]);
-        info_block.render(sections[0], buf);
-
+        let info_area = sections[0].inner(Margin { horizontal: 1, vertical: 1 });
         Paragraph::new("metadata / useful info").render(info_area, buf);
 
 
-        let tabs_block = Block::default()
+        Block::default()
             .title(" sessions ")
             .title_style(Style::default().white().bg(dedicated_input_background_colour()))
-            .border_style(Style::default().fg(secondary_colour()))
-            .borders(Borders::ALL)
-            .padding(Padding::vertical(1))
-            .bg(secondary_colour());
+            .bg(secondary_colour())
+            .render(sections[1], buf);
 
-        let tabs_area = tabs_block.inner(sections[1]);
-        tabs_block.render(sections[1], buf);
+        let tabs_area = sections[1].inner(Margin { horizontal: 1, vertical: 2 });
 
         let max_rows = tabs_area.height as usize;
         let max_width = tabs_area.width as usize;

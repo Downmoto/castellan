@@ -1,16 +1,19 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     prelude::{Buffer, Rect},
-    style::{Style, Stylize},
+    style::Style,
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Widget},
+    widgets::{Paragraph, Widget},
 };
 
-use crate::settings::settings_keybinds::{AppKeybindsSettings, KeyCommand};
-use crate::tui::util::secondary_colour;
 use crate::{
     input::InputMode,
-    tui::util::{dedicated_alt_mode_colour, dedicated_black_colour, dedicated_mode_colour},
+    settings::settings_keybinds::{AppKeybindsSettings, KeyCommand},
+    tui::util::{
+        dedicated_alt_mode_colour, 
+        dedicated_black_colour, 
+        dedicated_mode_colour, 
+    },
 };
 
 pub fn render(
@@ -20,14 +23,6 @@ pub fn render(
     scroll_text: &str,
     keybinds: &AppKeybindsSettings,
 ) {
-    let frame_block = Block::default()
-        .border_style(Style::default().fg(secondary_colour()))
-        .borders(Borders::ALL)
-        .bg(secondary_colour());
-
-    let content_area = frame_block.inner(area);
-    frame_block.render(area, buf);
-
     let sections = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
@@ -35,7 +30,7 @@ pub fn render(
             Constraint::Min(1),
             Constraint::Length(24),
         ])
-        .split(content_area);
+        .split(area);
 
     let (mode_label, mode_bg, center_text) = match input_mode {
         InputMode::Normal => (
