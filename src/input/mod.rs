@@ -83,6 +83,7 @@ impl<'a> KeybindResolver<'a> {
                         | KeyCommand::Backspace
                         | KeyCommand::NextTab
                         | KeyCommand::PrevTab
+                        | KeyCommand::ExitApp
                         | KeyCommand::Submit => {
                             return KeyAction::Command(command);
                         }

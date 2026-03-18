@@ -13,6 +13,8 @@ use crate::settings::{
     prelude::settings,
     settings_keybinds::{AppKeybindsSettings, KeyCommand},
 };
+use crate::tui::components::request_message::RequestMessageWidget;
+use crate::tui::components::response_message::ResponseMessageWidget;
 use crate::tui::components::user_input::UserInputWidget;
 use crate::tui::util::{dedicated_dark_grey_colour, primary_colour};
 
@@ -66,8 +68,10 @@ impl ChatState {
     /// updates viewport-derived values used for wrapped-line scrolling.
     pub fn set_viewport_from_area(&mut self, area: Rect) {
         let content_width = area.width.saturating_sub(2).max(1) as usize;
-        let content_height = area.height.saturating_sub(2);
-        let transcript_height = content_height.saturating_sub(1).max(1) as usize;
+        let mut input_height = UserInputWidget::required_height(&self.input, area.width);
+        let max_input_height = area.height.saturating_sub(1).max(1);
+        input_height = input_height.min(max_input_height);
+        let transcript_height = area.height.saturating_sub(input_height).max(1) as usize;
 
         self.transcript_viewport_width = content_width;
         self.transcript_viewport_height = transcript_height;
@@ -160,7 +164,7 @@ impl ChatState {
             .iter()
             .enumerate()
             .map(|(index, message)| {
-                let message_lines = message_plain_rows(message)
+                let message_lines = message_plain_rows(message, width)
                     .iter()
                     .map(|row| wrapped_line_count(row, width))
                     .sum::<usize>();
@@ -182,76 +186,20 @@ impl ChatState {
     }
 }
 
-fn sender_prefix_and_style(sender: &str) -> (&'static str, Style) {
-    match sender {
-        "you" => (
-            "you       > ",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        "assistant" => (
-            "assistant < ",
-            Style::default()
-                .fg(Color::Green)
-                .add_modifier(Modifier::BOLD),
-        ),
-        _ => (
-            "message   - ",
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        ),
+fn message_plain_rows(message: &ChatMessage, width: usize) -> Vec<String> {
+    match message.sender.as_str() {
+        "you" => RequestMessageWidget::new(&message.content, width).plain_rows(),
+        "assistant" => ResponseMessageWidget::new(&message.content, width).plain_rows(),
+        _ => ResponseMessageWidget::new(&message.content, width).plain_rows(),
     }
 }
 
-fn message_plain_rows(message: &ChatMessage) -> Vec<String> {
-    let (prefix, _) = sender_prefix_and_style(&message.sender);
-    let continuation = " ".repeat(prefix.len());
-    let mut rows: Vec<String> = Vec::new();
-
-    for (line_index, line) in message.content.split('\n').enumerate() {
-        if line_index == 0 {
-            rows.push(format!("{}{}", prefix, line));
-        } else {
-            rows.push(format!("{}{}", continuation, line));
-        }
+fn message_styled_rows(message: &ChatMessage, width: usize) -> Vec<Line<'static>> {
+    match message.sender.as_str() {
+        "you" => RequestMessageWidget::new(&message.content, width).styled_rows(),
+        "assistant" => ResponseMessageWidget::new(&message.content, width).styled_rows(),
+        _ => ResponseMessageWidget::new(&message.content, width).styled_rows(),
     }
-
-    if rows.is_empty() {
-        rows.push(prefix.to_string());
-    }
-
-    rows
-}
-
-fn message_styled_rows(message: &ChatMessage) -> Vec<Line<'static>> {
-    let (prefix, prefix_style) = sender_prefix_and_style(&message.sender);
-    let continuation = " ".repeat(prefix.len());
-    let mut rows: Vec<Line<'static>> = Vec::new();
-
-    for (line_index, line) in message.content.split('\n').enumerate() {
-        if line_index == 0 {
-            rows.push(Line::from(vec![
-                Span::styled(prefix.to_string(), prefix_style),
-                Span::raw(line.to_string()),
-            ]));
-        } else {
-            rows.push(Line::from(vec![
-                Span::raw(continuation.clone()),
-                Span::raw(line.to_string()),
-            ]));
-        }
-    }
-
-    if rows.is_empty() {
-        rows.push(Line::from(vec![Span::styled(
-            prefix.to_string(),
-            prefix_style,
-        )]));
-    }
-
-    rows
 }
 
 fn empty_state_shortcuts(keybinds: &AppKeybindsSettings) -> Vec<(String, &'static str)> {
@@ -357,6 +305,7 @@ impl Widget for ChatWidget<'_> {
         let sections = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Min(1), Constraint::Length(input_height)])
+            .spacing(1)
             .split(area.inner(Margin { horizontal: 1, vertical: 0 }));
 
         if self.state.messages.is_empty() {
@@ -386,16 +335,16 @@ impl Widget for ChatWidget<'_> {
             paragraph.render(empty_layout[1], buf);
         } else {
             let mut lines: Vec<Line<'static>> = Vec::new();
+            let transcript_width = sections[0].width.max(1) as usize;
 
             for (index, message) in self.state.messages.iter().enumerate() {
-                lines.extend(message_styled_rows(message));
+                lines.extend(message_styled_rows(message, transcript_width));
                 if index + 1 < self.state.messages.len() {
                     lines.push(Line::raw(""));
                 }
             }
 
             let transcript_height = sections[0].height as usize;
-            let transcript_width = sections[0].width.max(1) as usize;
             let paragraph = Paragraph::new(Text::from(lines)).wrap(Wrap { trim: false });
             let total_lines = self
                 .state
