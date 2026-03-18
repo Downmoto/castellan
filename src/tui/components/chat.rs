@@ -2,7 +2,7 @@
 //! this module owns transcript, input, and chat-local scrolling logic.
 
 use ratatui::{
-    layout::{Alignment, Constraint, Direction, Layout},
+    layout::{Alignment, Constraint, Direction, Layout, Margin},
     prelude::{Buffer, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
@@ -357,7 +357,7 @@ impl Widget for ChatWidget<'_> {
         let sections = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Min(1), Constraint::Length(input_height)])
-            .split(area);
+            .split(area.inner(Margin { horizontal: 1, vertical: 0 }));
 
         if self.state.messages.is_empty() {
             let empty_lines = empty_state_lines();

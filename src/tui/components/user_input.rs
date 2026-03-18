@@ -3,7 +3,7 @@
 use ratatui::{
     layout::Margin,
     prelude::{Buffer, Rect},
-    style::{Modifier, Style, Stylize},
+    style::{Style, Stylize},
     text::{Line, Span, Text},
     widgets::{Block, Paragraph, Widget, Wrap},
 };
@@ -43,12 +43,7 @@ impl<'a> UserInputWidget<'a> {
         }
 
         let inner_width = width.saturating_sub(2).max(1) as usize;
-        let input_with_cursor = if input.is_empty() {
-            "> type a message...|".to_string()
-        } else {
-            format!("> {}|", input)
-        };
-        let wrapped_rows = wrapped_line_count(&input_with_cursor, inner_width).max(1);
+        let wrapped_rows = wrapped_line_count(&input, inner_width).max(1);
 
         wrapped_rows.saturating_add(2).min(u16::MAX as usize) as u16
     }
@@ -66,9 +61,7 @@ impl Widget for UserInputWidget<'_> {
 
         let cursor_style = Style::default().fg(primary_colour());
         let input_style = Style::default().fg(primary_colour());
-        let placeholder_style = Style::default()
-            .fg(dedicated_grey_colour())
-            .add_modifier(Modifier::ITALIC);
+        let placeholder_style = Style::default().fg(dedicated_grey_colour());
 
         let line = if self.input.is_empty() {
             Line::from(vec![

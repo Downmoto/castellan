@@ -1,5 +1,5 @@
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Margin},
     prelude::{Buffer, Rect},
     style::Style,
     text::{Line, Span},
@@ -30,7 +30,7 @@ pub fn render(
             Constraint::Min(1),
             Constraint::Length(24),
         ])
-        .split(area);
+        .split(area.inner(Margin { horizontal: 1, vertical: 0 }));
 
     let (mode_label, mode_bg, center_text) = match input_mode {
         InputMode::Normal => (

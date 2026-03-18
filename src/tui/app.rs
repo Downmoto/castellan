@@ -10,7 +10,7 @@ use crate::{
 use ratatui::{
     layout::{Constraint, Direction, Flex, Layout},
     prelude::Rect,
-    style::{Style},
+    style::Style,
     widgets::{Block, Widget},
 };
 
