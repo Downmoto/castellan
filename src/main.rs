@@ -1,10 +1,10 @@
 use castellan::logging::prelude::*;
 use castellan::llm;
-use castellan::input::{KeyAction, KeyCommand, KeybindResolver};
+use castellan::input::{KeyAction, KeybindResolver};
 use castellan::settings::prelude::*;
-use castellan::tui::{app::Castellan, prelude::*};
+use castellan::tui::{app::{Castellan, CommandResult}, prelude::*};
 
-use crossterm::event::{self as c_event, Event, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::event::{self as c_event, Event, KeyEventKind};
 use dotenv::dotenv;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -12,6 +12,16 @@ use tracing::{event, span, Level};
 
 enum AppEvent {
     AssistantReady { tab_index: usize, message: String },
+}
+
+fn drain_app_events(app: &mut Castellan, rx: &mut mpsc::Receiver<AppEvent>) {
+    while let Ok(app_event) = rx.try_recv() {
+        match app_event {
+            AppEvent::AssistantReady { tab_index, message } => {
+                app.push_assistant_message_for_tab(tab_index, message)
+            }
+        }
+    }
 }
 
 #[tokio::main]
@@ -44,55 +54,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             frame.render_widget(&app, frame.area());
         })?;
 
-        while let Ok(app_event) = rx.try_recv() {
-            match app_event {
-                AppEvent::AssistantReady { tab_index, message } => {
-                    app.push_assistant_message_for_tab(tab_index, message)
-                }
-            }
-        }
+        drain_app_events(&mut app, &mut rx);
 
         if c_event::poll(Duration::from_millis(100))? && let Event::Key(key) = c_event::read()? {
             if key.kind != KeyEventKind::Press {
                 continue;
             }
 
-            if app.is_renaming_current_tab() {
-                match key.code {
-                    KeyCode::Enter => app.commit_current_tab_rename(),
-                    KeyCode::Esc => app.cancel_current_tab_rename(),
-                    KeyCode::Backspace => app.rename_current_tab_backspace(),
-                    KeyCode::Char(ch)
-                        if !key.modifiers.contains(KeyModifiers::CONTROL)
-                            && !key.modifiers.contains(KeyModifiers::ALT) =>
-                    {
-                        app.rename_current_tab_push_char(ch)
-                    }
-                    _ => {}
-                }
-
+            if app.handle_rename_key_event(key) {
                 continue;
             }
 
             match key_resolver.resolve(key, app.input_mode()) {
-                KeyAction::Command(command) => match command {
-                    KeyCommand::ExitApp => break,
-                    KeyCommand::EnterInputMode => app.enter_input_mode(),
-                    KeyCommand::ExitInputMode => app.exit_input_mode(),
-                    KeyCommand::NewChatTab => app.new_chat_tab(),
-                    KeyCommand::NextTab => app.next_tab(),
-                    KeyCommand::PrevTab => app.prev_tab(),
-                    KeyCommand::Backspace => app.backspace(),
-                    KeyCommand::CloseCurrentTab => app.close_current_tab(),
-                    KeyCommand::RenameCurrentTab => app.rename_current_tab(),
-                    KeyCommand::ScrollUp => app.scroll_up(scroll_line_step),
-                    KeyCommand::ScrollDown => app.scroll_down(scroll_line_step),
-                    KeyCommand::PageUp => app.scroll_up(scroll_page_step),
-                    KeyCommand::PageDown => app.scroll_down(scroll_page_step),
-                    KeyCommand::ScrollToBottom => app.scroll_to_bottom(),
-                    KeyCommand::Submit => {
-                        if let Some((tab_index, message)) = app.take_input_for_submit() {
-                            app.push_user_message(message.clone());
+                KeyAction::Command(command) => {
+                    match app.apply_command(command, scroll_line_step, scroll_page_step) {
+                        CommandResult::Exit => break,
+                        CommandResult::None => {}
+                        CommandResult::Submit { tab_index, message } => {
                             let sender = tx.clone();
 
                             tokio::spawn(async move {
@@ -112,7 +90,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             });
                         }
                     }
-                },
+                }
                 KeyAction::InsertChar(ch) => app.push_char(ch),
                 KeyAction::Noop => {}
             }

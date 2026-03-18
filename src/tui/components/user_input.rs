@@ -29,7 +29,7 @@ impl<'a> UserInputWidget<'a> {
         }
 
         let inner_width = width.saturating_sub(2).max(1) as usize;
-        let wrapped_rows = wrapped_line_count(&input, inner_width).max(1);
+        let wrapped_rows = wrapped_line_count(input, inner_width).max(1);
 
         wrapped_rows.saturating_add(2).min(u16::MAX as usize) as u16
     }

@@ -2,10 +2,12 @@
 //! this module owns top-level layout and delegates chat behavior.
 
 use crate::{
-    input::InputMode,
+    input::{InputMode, KeyCommand},
     settings::prelude::settings,
     tui::{components::info_sidebar::InfoSidebar, util::dedicated_black_colour},
 };
+
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use ratatui::{
     layout::{Constraint, Direction, Flex, Layout},
@@ -18,6 +20,12 @@ use super::components::{
     chat::{ChatState, ChatWidget},
     status_bar,
 };
+
+pub enum CommandResult {
+    None,
+    Exit,
+    Submit { tab_index: usize, message: String },
+}
 
 /// root tui state for cross-component composition.
 pub struct Castellan {
@@ -42,6 +50,23 @@ impl Default for Castellan {
 }
 
 impl Castellan {
+    fn layout_regions(area: Rect) -> (Rect, Rect, Rect) {
+        let page = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(1), Constraint::Length(1)])
+            .spacing(1)
+            .split(area);
+
+        let columns = Layout::default()
+            .direction(Direction::Horizontal)
+            .flex(Flex::Center)
+            .spacing(2)
+            .constraints([Constraint::Percentage(100), Constraint::Length(30)])
+            .split(page[0]);
+
+        (columns[0], columns[1], page[1])
+    }
+
     fn default_tab_title(index: usize) -> String {
         format!("chat {}", index)
     }
@@ -170,21 +195,102 @@ impl Castellan {
 
     /// updates chat viewport metrics from the current terminal area.
     pub fn update_viewport_from_area(&mut self, area: Rect) {
-        let page = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(100),
-                Constraint::Length(3),
-            ])
-            .split(area);
-
-        let columns = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(100), Constraint::Length(30)])
-            .split(page[0]);
+        let (chat_area, _, _) = Self::layout_regions(area);
 
         for chat in &mut self.chats {
-            chat.set_viewport_from_area(columns[0]);
+            chat.set_viewport_from_area(chat_area);
+        }
+    }
+
+    pub fn handle_rename_key_event(&mut self, key_event: KeyEvent) -> bool {
+        if !self.is_renaming_current_tab() {
+            return false;
+        }
+
+        match key_event.code {
+            KeyCode::Enter => self.commit_current_tab_rename(),
+            KeyCode::Esc => self.cancel_current_tab_rename(),
+            KeyCode::Backspace => self.rename_current_tab_backspace(),
+            KeyCode::Char(ch)
+                if !key_event.modifiers.contains(KeyModifiers::CONTROL)
+                    && !key_event.modifiers.contains(KeyModifiers::ALT) =>
+            {
+                self.rename_current_tab_push_char(ch)
+            }
+            _ => {}
+        }
+
+        true
+    }
+
+    pub fn apply_command(
+        &mut self,
+        command: KeyCommand,
+        scroll_line_step: usize,
+        scroll_page_step: usize,
+    ) -> CommandResult {
+        match command {
+            KeyCommand::ExitApp => CommandResult::Exit,
+            KeyCommand::EnterInputMode => {
+                self.enter_input_mode();
+                CommandResult::None
+            }
+            KeyCommand::ExitInputMode => {
+                self.exit_input_mode();
+                CommandResult::None
+            }
+            KeyCommand::NewChatTab => {
+                self.new_chat_tab();
+                CommandResult::None
+            }
+            KeyCommand::NextTab => {
+                self.next_tab();
+                CommandResult::None
+            }
+            KeyCommand::PrevTab => {
+                self.prev_tab();
+                CommandResult::None
+            }
+            KeyCommand::Backspace => {
+                self.backspace();
+                CommandResult::None
+            }
+            KeyCommand::CloseCurrentTab => {
+                self.close_current_tab();
+                CommandResult::None
+            }
+            KeyCommand::RenameCurrentTab => {
+                self.rename_current_tab();
+                CommandResult::None
+            }
+            KeyCommand::ScrollUp => {
+                self.scroll_up(scroll_line_step);
+                CommandResult::None
+            }
+            KeyCommand::ScrollDown => {
+                self.scroll_down(scroll_line_step);
+                CommandResult::None
+            }
+            KeyCommand::PageUp => {
+                self.scroll_up(scroll_page_step);
+                CommandResult::None
+            }
+            KeyCommand::PageDown => {
+                self.scroll_down(scroll_page_step);
+                CommandResult::None
+            }
+            KeyCommand::ScrollToBottom => {
+                self.scroll_to_bottom();
+                CommandResult::None
+            }
+            KeyCommand::Submit => {
+                let Some((tab_index, message)) = self.take_input_for_submit() else {
+                    return CommandResult::None;
+                };
+
+                self.push_user_message(message.clone());
+                CommandResult::Submit { tab_index, message }
+            }
         }
     }
 }
@@ -246,34 +352,19 @@ impl Widget for &Castellan {
             .style(Style::default().bg(dedicated_black_colour()))
             .render(area, buf);
 
-        let page = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(100),
-                Constraint::Length(1),
-            ])
-            .flex(Flex::Start)
-            .spacing(1)
-            .split(area);
+        let (chat_area, sidebar_area, status_area) = Castellan::layout_regions(area);
 
-        let columns = Layout::default()
-            .direction(Direction::Horizontal)
-            .flex(Flex::Center)
-            .spacing(2)
-            .constraints([Constraint::Percentage(100), Constraint::Length(30)])
-            .split(page[0]);
-
-        ChatWidget::new(self.active_chat()).render(columns[0], buf);
+        ChatWidget::new(self.active_chat()).render(chat_area, buf);
 
         InfoSidebar::new(
             &self.tab_labels(),
             self.active_tab,
             self.is_renaming_current_tab(),
         )
-        .render(columns[1], buf);
+        .render(sidebar_area, buf);
 
         status_bar::render(
-            page[1],
+            status_area,
             buf,
             self.input_mode,
             &self.active_chat().status_text(),

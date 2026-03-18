@@ -233,13 +233,9 @@ impl AppKeybindsSettings {
     ///
     /// Matching is performed in [`KeyCommand::ORDERED`] sequence.
     pub fn resolve_command(&self, key_event: &KeyEvent) -> Option<KeyCommand> {
-        for command in KeyCommand::ORDERED {
-            if self.binding_for(command).matches(key_event) {
-                return Some(command);
-            }
-        }
-
-        None
+        KeyCommand::ORDERED
+            .into_iter()
+            .find(|&command| self.binding_for(command).matches(key_event))
     }
 
     /// returns the display label for a command's current binding.

@@ -64,6 +64,18 @@ impl Default for ChatState {
 }
 
 impl ChatState {
+    fn input_height_for_area(&self, area: Rect) -> u16 {
+        calculate_input_height(&self.input, area)
+    }
+
+    fn content_width_for_area(area: Rect) -> usize {
+        area.width.saturating_sub(2).max(1) as usize
+    }
+
+    fn transcript_height_for_area(area: Rect, input_height: u16) -> usize {
+        area.height.saturating_sub(input_height).max(1) as usize
+    }
+
     pub fn title(&self) -> &str {
         &self.title
     }
@@ -74,11 +86,9 @@ impl ChatState {
 
     /// updates viewport-derived values used for wrapped-line scrolling.
     pub fn set_viewport_from_area(&mut self, area: Rect) {
-        let content_width = area.width.saturating_sub(2).max(1) as usize;
-        let mut input_height = UserInputWidget::required_height(&self.input, area.width);
-        let max_input_height = area.height.saturating_sub(1).max(1);
-        input_height = input_height.min(max_input_height);
-        let transcript_height = area.height.saturating_sub(input_height).max(1) as usize;
+        let input_height = self.input_height_for_area(area);
+        let content_width = Self::content_width_for_area(area);
+        let transcript_height = Self::transcript_height_for_area(area, input_height);
 
         self.transcript_viewport_width = content_width;
         self.transcript_viewport_height = transcript_height;
@@ -144,15 +154,13 @@ impl ChatState {
     /// builds status text consumed by the app status bar.
     pub fn status_text(&self) -> String {
         let max_scroll = self.max_scroll_from_bottom();
-        let scroll = if self.scroll_from_bottom == 0 {
+        if self.scroll_from_bottom == 0 {
             "scroll: bottom".to_string()
         } else if self.scroll_from_bottom >= max_scroll {
             "scroll: top".to_string()
         } else {
             format!("scroll: {} lines up", self.scroll_from_bottom)
-        };
-
-        scroll
+        }
     }
 
     /// computes total wrapped transcript lines for current viewport width.
@@ -191,6 +199,13 @@ impl ChatState {
     fn clamp_scroll(&mut self) {
         self.scroll_from_bottom = self.scroll_from_bottom.min(self.max_scroll_from_bottom());
     }
+}
+
+fn calculate_input_height(input: &str, area: Rect) -> u16 {
+    let mut input_height = UserInputWidget::required_height(input, area.width);
+    let max_input_height = area.height.saturating_sub(1).max(1);
+    input_height = input_height.min(max_input_height);
+    input_height
 }
 
 fn message_plain_rows(message: &ChatMessage, width: usize) -> Vec<String> {
@@ -290,9 +305,7 @@ impl Widget for ChatWidget<'_> {
     where
         Self: Sized,
     {
-        let mut input_height = UserInputWidget::required_height(&self.state.input, area.width);
-        let max_input_height = area.height.saturating_sub(1).max(1);
-        input_height = input_height.min(max_input_height);
+        let input_height = calculate_input_height(&self.state.input, area);
 
         let sections = Layout::default()
             .direction(Direction::Vertical)
