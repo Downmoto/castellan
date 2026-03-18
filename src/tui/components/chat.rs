@@ -40,11 +40,64 @@ pub struct ChatMessage {
     pub content: String,
 }
 
+#[derive(Default)]
+struct ChatTranscript {
+    messages: Vec<ChatMessage>,
+}
+
+impl ChatTranscript {
+    fn is_empty(&self) -> bool {
+        self.messages.is_empty()
+    }
+
+    fn iter(&self) -> std::slice::Iter<'_, ChatMessage> {
+        self.messages.iter()
+    }
+
+    fn len(&self) -> usize {
+        self.messages.len()
+    }
+
+    fn push_user_message(&mut self, content: String) {
+        self.messages.push(ChatMessage {
+            sender: ChatSender::User,
+            content,
+        });
+    }
+
+    fn push_assistant_message(&mut self, content: String) {
+        self.messages.push(ChatMessage {
+            sender: ChatSender::Assistant,
+            content,
+        });
+    }
+
+    fn total_lines_for_width(&self, width: usize) -> usize {
+        if self.messages.is_empty() {
+            return 1;
+        }
+
+        let width = width.max(1);
+        self.messages
+            .iter()
+            .enumerate()
+            .map(|(index, message)| {
+                let message_lines = message_plain_rows(message, width)
+                    .iter()
+                    .map(|row| wrapped_line_count(row, width))
+                    .sum::<usize>();
+                let separator = usize::from(index + 1 < self.messages.len());
+                message_lines + separator
+            })
+            .sum()
+    }
+}
+
 /// mutable chat domain state used by app events and rendering.
 pub struct ChatState {
     title: String,
     input: String,
-    messages: Vec<ChatMessage>,
+    transcript: ChatTranscript,
     scroll_from_bottom: usize,
     transcript_viewport_width: usize,
     transcript_viewport_height: usize,
@@ -55,7 +108,7 @@ impl Default for ChatState {
         Self {
             title: "chat".to_string(),
             input: String::new(),
-            messages: Vec::new(),
+            transcript: ChatTranscript::default(),
             scroll_from_bottom: 0,
             transcript_viewport_width: 0,
             transcript_viewport_height: 0,
@@ -118,19 +171,13 @@ impl ChatState {
 
     /// appends a user message and anchors transcript to bottom.
     pub fn push_user_message(&mut self, content: String) {
-        self.messages.push(ChatMessage {
-            sender: ChatSender::User,
-            content,
-        });
+        self.transcript.push_user_message(content);
         self.scroll_to_bottom();
     }
 
     /// appends an assistant message and anchors transcript to bottom.
     pub fn push_assistant_message(&mut self, content: String) {
-        self.messages.push(ChatMessage {
-            sender: ChatSender::Assistant,
-            content,
-        });
+        self.transcript.push_assistant_message(content);
         self.scroll_to_bottom();
     }
 
@@ -165,28 +212,13 @@ impl ChatState {
 
     /// computes total wrapped transcript lines for current viewport width.
     fn total_transcript_lines(&self) -> usize {
-        self.total_transcript_lines_for_width(self.transcript_viewport_width.max(1))
+        self.transcript
+            .total_lines_for_width(self.transcript_viewport_width.max(1))
     }
 
     /// computes total wrapped transcript lines for an explicit width.
     fn total_transcript_lines_for_width(&self, width: usize) -> usize {
-        if self.messages.is_empty() {
-            return 1;
-        }
-
-        let width = width.max(1);
-        self.messages
-            .iter()
-            .enumerate()
-            .map(|(index, message)| {
-                let message_lines = message_plain_rows(message, width)
-                    .iter()
-                    .map(|row| wrapped_line_count(row, width))
-                    .sum::<usize>();
-                let separator = usize::from(index + 1 < self.messages.len());
-                message_lines + separator
-            })
-            .sum()
+        self.transcript.total_lines_for_width(width)
     }
 
     /// computes how far the viewport can scroll upward from bottom.
@@ -208,20 +240,28 @@ fn calculate_input_height(input: &str, area: Rect) -> u16 {
     input_height
 }
 
-fn message_plain_rows(message: &ChatMessage, width: usize) -> Vec<String> {
+fn with_message_widget<T>(
+    message: &ChatMessage,
+    width: usize,
+    request: impl FnOnce(RequestMessageWidget<'_>) -> T,
+    response: impl FnOnce(ResponseMessageWidget<'_>) -> T,
+) -> T {
     match message.sender {
-        ChatSender::User => RequestMessageWidget::new(&message.content, width).plain_rows(),
-        ChatSender::Assistant => ResponseMessageWidget::new(&message.content, width).plain_rows(),
+        ChatSender::User => request(RequestMessageWidget::new(&message.content, width)),
+        ChatSender::Assistant => response(ResponseMessageWidget::new(&message.content, width)),
     }
 }
 
+fn message_plain_rows(message: &ChatMessage, width: usize) -> Vec<String> {
+    with_message_widget(message, width, |widget| widget.plain_rows(), |widget| {
+        widget.plain_rows()
+    })
+}
+
 fn message_styled_rows(message: &ChatMessage, width: usize) -> Vec<Line<'static>> {
-    match message.sender {
-        ChatSender::User => RequestMessageWidget::new(&message.content, width).styled_rows(),
-        ChatSender::Assistant => {
-            ResponseMessageWidget::new(&message.content, width).styled_rows()
-        }
-    }
+    with_message_widget(message, width, |widget| widget.styled_rows(), |widget| {
+        widget.styled_rows()
+    })
 }
 
 fn empty_state_shortcuts(keybinds: &AppKeybindsSettings) -> Vec<(String, &'static str)> {
@@ -313,7 +353,7 @@ impl Widget for ChatWidget<'_> {
             .spacing(1)
             .split(area.inner(Margin { horizontal: 1, vertical: 0 }));
 
-        if self.state.messages.is_empty() {
+        if self.state.transcript.is_empty() {
             let empty_lines = empty_state_lines();
             let empty_height = empty_lines.len();
             let available_height = sections[0].height as usize;
@@ -342,9 +382,9 @@ impl Widget for ChatWidget<'_> {
             let mut lines: Vec<Line<'static>> = Vec::new();
             let transcript_width = sections[0].width.max(1) as usize;
 
-            for (index, message) in self.state.messages.iter().enumerate() {
+            for (index, message) in self.state.transcript.iter().enumerate() {
                 lines.extend(message_styled_rows(message, transcript_width));
-                if index + 1 < self.state.messages.len() {
+                if index + 1 < self.state.transcript.len() {
                     lines.push(Line::raw(""));
                 }
             }

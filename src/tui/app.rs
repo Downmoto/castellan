@@ -27,24 +27,153 @@ pub enum CommandResult {
     Submit { tab_index: usize, message: String },
 }
 
-/// root tui state for cross-component composition.
-pub struct Castellan {
+struct ChatTabs {
     chats: Vec<ChatState>,
     active_tab: usize,
-    input_mode: InputMode,
-    tab_rename_buffer: Option<String>,
 }
 
-impl Default for Castellan {
-    fn default() -> Self {
+impl ChatTabs {
+    fn with_first_tab() -> Self {
         let mut first_chat = ChatState::default();
-        first_chat.set_title(Self::default_tab_title(1));
+        first_chat.set_title(Castellan::default_tab_title(1));
 
         Self {
             chats: vec![first_chat],
             active_tab: 0,
+        }
+    }
+
+    fn active_index(&self) -> usize {
+        self.active_tab
+    }
+
+    fn active(&self) -> &ChatState {
+        &self.chats[self.active_tab]
+    }
+
+    fn active_mut(&mut self) -> &mut ChatState {
+        &mut self.chats[self.active_tab]
+    }
+
+    fn iter_mut(&mut self) -> impl Iterator<Item = &mut ChatState> {
+        self.chats.iter_mut()
+    }
+
+    fn get_mut(&mut self, index: usize) -> Option<&mut ChatState> {
+        self.chats.get_mut(index)
+    }
+
+    fn close_active(&mut self) {
+        if self.chats.len() <= 1 {
+            return;
+        }
+
+        self.chats.remove(self.active_tab);
+        if self.active_tab >= self.chats.len() {
+            self.active_tab = self.chats.len().saturating_sub(1);
+        }
+    }
+
+    fn add_new_chat(&mut self) {
+        let mut chat = ChatState::default();
+        chat.set_title(Castellan::default_tab_title(self.chats.len() + 1));
+        self.chats.push(chat);
+        self.active_tab = self.chats.len().saturating_sub(1);
+    }
+
+    fn next(&mut self) {
+        if self.chats.len() <= 1 {
+            return;
+        }
+
+        self.active_tab = (self.active_tab + 1) % self.chats.len();
+    }
+
+    fn prev(&mut self) {
+        if self.chats.len() <= 1 {
+            return;
+        }
+
+        self.active_tab = (self.active_tab + self.chats.len() - 1) % self.chats.len();
+    }
+
+    fn labels(&self, rename_state: &RenameState) -> Vec<String> {
+        self.chats
+            .iter()
+            .enumerate()
+            .map(|(index, chat)| {
+                if index == self.active_tab && let RenameState::Active(draft) = rename_state {
+                    return format!("{}█", draft);
+                }
+
+                chat.title().to_string()
+            })
+            .collect()
+    }
+}
+
+enum RenameState {
+    Inactive,
+    Active(String),
+}
+
+impl RenameState {
+    fn start(&mut self) -> bool {
+        if matches!(self, Self::Active(_)) {
+            return false;
+        }
+
+        *self = Self::Active(String::new());
+        true
+    }
+
+    fn is_active(&self) -> bool {
+        matches!(self, Self::Active(_))
+    }
+
+    fn push_char(&mut self, ch: char) {
+        if let Self::Active(draft) = self {
+            draft.push(ch);
+        }
+    }
+
+    fn backspace(&mut self) {
+        if let Self::Active(draft) = self {
+            draft.pop();
+        }
+    }
+
+    fn cancel(&mut self) {
+        *self = Self::Inactive;
+    }
+
+    fn finish(&mut self) -> Option<String> {
+        let Self::Active(draft) = std::mem::replace(self, Self::Inactive) else {
+            return None;
+        };
+
+        let trimmed = draft.trim().to_string();
+        if trimmed.is_empty() {
+            return None;
+        }
+
+        Some(trimmed)
+    }
+}
+
+/// root tui state for cross-component composition.
+pub struct Castellan {
+    tabs: ChatTabs,
+    input_mode: InputMode,
+    rename_state: RenameState,
+}
+
+impl Default for Castellan {
+    fn default() -> Self {
+        Self {
+            tabs: ChatTabs::with_first_tab(),
             input_mode: InputMode::Normal,
-            tab_rename_buffer: None,
+            rename_state: RenameState::Inactive,
         }
     }
 }
@@ -72,30 +201,20 @@ impl Castellan {
     }
 
     fn active_chat(&self) -> &ChatState {
-        &self.chats[self.active_tab]
+        self.tabs.active()
     }
 
     fn active_chat_mut(&mut self) -> &mut ChatState {
-        &mut self.chats[self.active_tab]
+        self.tabs.active_mut()
     }
 
     fn tab_labels(&self) -> Vec<String> {
-        self.chats
-            .iter()
-            .enumerate()
-            .map(|(index, chat)| {
-                if index == self.active_tab && let Some(draft) = &self.tab_rename_buffer {
-                    return format!("{}█", draft);
-                }
-
-                chat.title().to_string()
-            })
-            .collect()
+        self.tabs.labels(&self.rename_state)
     }
 
     /// returns the current active chat index.
     pub fn active_tab_index(&self) -> usize {
-        self.active_tab
+        self.tabs.active_index()
     }
 
     /// returns the current global input mode.
@@ -115,89 +234,62 @@ impl Castellan {
     }
 
     pub fn close_current_tab(&mut self) {
-        if self.chats.len() <= 1 {
-            return;
-        }
-
         self.cancel_current_tab_rename();
-        self.chats.remove(self.active_tab);
-        if self.active_tab >= self.chats.len() {
-            self.active_tab = self.chats.len().saturating_sub(1);
-        }
+        self.tabs.close_active();
     }
 
     pub fn rename_current_tab(&mut self) {
-        if self.input_mode != InputMode::Normal || self.tab_rename_buffer.is_some() {
+        if self.input_mode != InputMode::Normal {
             return;
         }
 
-        self.tab_rename_buffer = Some(String::new());
+        self.rename_state.start();
     }
 
     pub fn is_renaming_current_tab(&self) -> bool {
-        self.tab_rename_buffer.is_some()
+        self.rename_state.is_active()
     }
 
     pub fn rename_current_tab_push_char(&mut self, ch: char) {
-        if let Some(draft) = &mut self.tab_rename_buffer {
-            draft.push(ch);
-        }
+        self.rename_state.push_char(ch);
     }
 
     pub fn rename_current_tab_backspace(&mut self) {
-        if let Some(draft) = &mut self.tab_rename_buffer {
-            draft.pop();
-        }
+        self.rename_state.backspace();
     }
 
     pub fn commit_current_tab_rename(&mut self) {
-        let Some(draft) = self.tab_rename_buffer.take() else {
+        let Some(new_title) = self.rename_state.finish() else {
             return;
         };
 
-        let new_title = draft.trim();
-        if new_title.is_empty() {
-            return;
-        }
-
-        self.active_chat_mut().set_title(new_title.to_string());
+        self.active_chat_mut().set_title(new_title);
     }
 
     pub fn cancel_current_tab_rename(&mut self) {
-        self.tab_rename_buffer = None;
+        self.rename_state.cancel();
     }
 
     /// creates a new chat tab and focuses it.
     pub fn new_chat_tab(&mut self) {
-        let mut chat = ChatState::default();
-        chat.set_title(Self::default_tab_title(self.chats.len() + 1));
-        self.chats.push(chat);
-        self.active_tab = self.chats.len().saturating_sub(1);
+        self.tabs.add_new_chat();
     }
 
     /// switches focus to the next chat tab.
     pub fn next_tab(&mut self) {
-        if self.chats.len() <= 1 {
-            return;
-        }
-
-        self.active_tab = (self.active_tab + 1) % self.chats.len();
+        self.tabs.next();
     }
 
     /// switches focus to the previous chat tab.
     pub fn prev_tab(&mut self) {
-        if self.chats.len() <= 1 {
-            return;
-        }
-
-        self.active_tab = (self.active_tab + self.chats.len() - 1) % self.chats.len();
+        self.tabs.prev();
     }
 
     /// updates chat viewport metrics from the current terminal area.
     pub fn update_viewport_from_area(&mut self, area: Rect) {
         let (chat_area, _, _) = Self::layout_regions(area);
 
-        for chat in &mut self.chats {
+        for chat in self.tabs.iter_mut() {
             chat.set_viewport_from_area(chat_area);
         }
     }
@@ -308,9 +400,10 @@ impl Castellan {
 
     /// returns a trimmed message if submit is valid and clears input.
     pub fn take_input_for_submit(&mut self) -> Option<(usize, String)> {
+        let active_tab = self.tabs.active_index();
         self.active_chat_mut()
             .take_input_for_submit()
-            .map(|message| (self.active_tab, message))
+            .map(|message| (active_tab, message))
     }
 
     /// appends a user-authored message to the transcript.
@@ -320,7 +413,7 @@ impl Castellan {
 
     /// appends an assistant-authored message to the transcript.
     pub fn push_assistant_message_for_tab(&mut self, tab_index: usize, content: String) {
-        if let Some(chat) = self.chats.get_mut(tab_index) {
+        if let Some(chat) = self.tabs.get_mut(tab_index) {
             chat.push_assistant_message(content);
         }
     }
@@ -358,7 +451,7 @@ impl Widget for &Castellan {
 
         InfoSidebar::new(
             &self.tab_labels(),
-            self.active_tab,
+            self.tabs.active_index(),
             self.is_renaming_current_tab(),
         )
         .render(sidebar_area, buf);
