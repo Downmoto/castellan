@@ -3,6 +3,7 @@ use std::env;
 use rig::prelude::CompletionClient;
 use rig::{completion::Prompt, providers::openai};
 use thiserror::Error;
+use tokio::sync::mpsc;
 
 
 #[derive(Debug, Error)]
@@ -13,6 +14,45 @@ pub enum LlmError {
     Request(String),
     #[error("empty llm response")]
     EmptyResponse,
+}
+
+pub struct AssistantReply {
+    pub tab_index: usize,
+    pub message: String,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct LlmService;
+
+impl LlmService {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn request_reply(
+        self,
+        sender: mpsc::Sender<AssistantReply>,
+        tab_index: usize,
+        user_prompt: String,
+    ) {
+        tokio::spawn(async move {
+            let message = assistant_message_from_prompt(&user_prompt).await;
+            let _ = sender.send(AssistantReply { tab_index, message }).await;
+        });
+    }
+}
+
+fn format_user_facing_error(error: LlmError) -> String {
+    format!(
+        "llm request failed: {error}. set OPENAI_API_KEY and optional CAST_LLM_MODEL."
+    )
+}
+
+async fn assistant_message_from_prompt(user_prompt: &str) -> String {
+    match generate_reply(user_prompt).await {
+        Ok(content) => content,
+        Err(error) => format_user_facing_error(error),
+    }
 }
 
 pub async fn generate_reply(user_prompt: &str) -> Result<String, LlmError> {

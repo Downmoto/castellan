@@ -1,6 +1,6 @@
 use castellan::logging::prelude::*;
-use castellan::llm;
 use castellan::input::{KeyAction, KeybindResolver};
+use castellan::llm::{AssistantReply, LlmService};
 use castellan::settings::prelude::*;
 use castellan::tui::{app::{Castellan, CommandResult}, prelude::*};
 
@@ -10,17 +10,9 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tracing::{event, span, Level};
 
-enum AppEvent {
-    AssistantReady { tab_index: usize, message: String },
-}
-
-fn drain_app_events(app: &mut Castellan, rx: &mut mpsc::Receiver<AppEvent>) {
-    while let Ok(app_event) = rx.try_recv() {
-        match app_event {
-            AppEvent::AssistantReady { tab_index, message } => {
-                app.push_assistant_message_for_tab(tab_index, message)
-            }
-        }
+fn drain_assistant_replies(app: &mut Castellan, rx: &mut mpsc::Receiver<AssistantReply>) {
+    while let Ok(reply) = rx.try_recv() {
+        app.push_assistant_message_for_tab(reply.tab_index, reply.message)
     }
 }
 
@@ -43,7 +35,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let key_resolver = KeybindResolver::new(&settings.keybinds);
     let scroll_line_step = settings.scroll.line_step;
     let scroll_page_step = settings.scroll.page_step;
-    let (tx, mut rx) = mpsc::channel::<AppEvent>(64);
+    let llm_service = LlmService::new();
+    let (tx, mut rx) = mpsc::channel::<AssistantReply>(64);
     event!(Level::INFO, "App initialized");
 
     loop {
@@ -54,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             frame.render_widget(&app, frame.area());
         })?;
 
-        drain_app_events(&mut app, &mut rx);
+        drain_assistant_replies(&mut app, &mut rx);
 
         if c_event::poll(Duration::from_millis(100))? && let Event::Key(key) = c_event::read()? {
             if key.kind != KeyEventKind::Press {
@@ -71,23 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         CommandResult::Exit => break,
                         CommandResult::None => {}
                         CommandResult::Submit { tab_index, message } => {
-                            let sender = tx.clone();
-
-                            tokio::spawn(async move {
-                                let reply = match llm::generate_reply(&message).await {
-                                    Ok(content) => content,
-                                    Err(error) => format!(
-                                        "llm request failed: {error}. set OPENAI_API_KEY and optional CAST_LLM_MODEL."
-                                    ),
-                                };
-
-                                let _ = sender
-                                    .send(AppEvent::AssistantReady {
-                                        tab_index,
-                                        message: reply,
-                                    })
-                                    .await;
-                            });
+                            llm_service.request_reply(tx.clone(), tab_index, message);
                         }
                     }
                 }
