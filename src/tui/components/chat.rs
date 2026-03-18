@@ -297,7 +297,7 @@ fn empty_state_lines() -> Vec<Line<'static>> {
         Style::default().fg(dedicated_dark_grey_colour()),
     ));
 
-    let shortcuts = empty_state_shortcuts(settings().keybinds());
+    let shortcuts = empty_state_shortcuts(&settings().keybinds);
     let max_key_width = shortcuts
         .iter()
         .map(|(key, _)| key.chars().count())

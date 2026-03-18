@@ -47,11 +47,11 @@ pub mod prelude {
     #[derive(Debug, Default, Deserialize)]
     pub struct CastellanSettings {
         #[serde(default)]
-        app_log: AppLogSettings,
+        pub app_log: AppLogSettings,
         #[serde(default)]
-        keybinds: AppKeybindsSettings,
+        pub keybinds: AppKeybindsSettings,
         #[serde(default)]
-        scroll: AppScrollSettings,
+        pub scroll: AppScrollSettings,
     }
 
     impl CastellanSettings {
@@ -68,18 +68,6 @@ pub mod prelude {
             let config = config_result?.try_deserialize()?;
 
             Ok(config)
-        }
-
-        pub fn app_log(&self) -> &AppLogSettings {
-            &self.app_log
-        }
-
-        pub fn keybinds(&self) -> &AppKeybindsSettings {
-            &self.keybinds
-        }
-
-        pub fn scroll(&self) -> &AppScrollSettings {
-            &self.scroll
         }
     }
 

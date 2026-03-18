@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
     let settings = settings();
-    let _subscriber = logging_init(settings.app_log().level, settings.app_log().timestamp_mode);
+    let _subscriber = logging_init(settings.app_log.level, settings.app_log.timestamp_mode);
 
     let _guard = span!(Level::INFO, "castellan_global").entered();
     event!(Level::INFO, "App start");
@@ -40,9 +40,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut terminal = init_terminal()?;
     let mut app = Castellan::default();
-    let key_resolver = KeybindResolver::new(settings.keybinds());
-    let scroll_line_step = settings.scroll().line_step;
-    let scroll_page_step = settings.scroll().page_step;
+    let key_resolver = KeybindResolver::new(&settings.keybinds);
+    let scroll_line_step = settings.scroll.line_step;
+    let scroll_page_step = settings.scroll.page_step;
     let (tx, mut rx) = mpsc::channel::<AppEvent>(64);
     event!(Level::INFO, "App initialized");
 

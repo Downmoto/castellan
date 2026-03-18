@@ -461,7 +461,7 @@ impl Widget for &Castellan {
             buf,
             self.input_mode,
             &self.active_chat().status_text(),
-            settings().keybinds(),
+            &settings().keybinds,
         );
     }
 }
