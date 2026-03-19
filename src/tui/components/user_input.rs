@@ -27,6 +27,8 @@ impl<'a> UserInputWidget<'a> {
     }
 
     /// computes rendered height with borders and wrapped content.
+    ///
+    /// returned height includes one-cell padding on all sides.
     pub fn required_height(input: &str, width: u16) -> u16 {
         if width == 0 {
             return 1;
@@ -41,6 +43,8 @@ impl<'a> UserInputWidget<'a> {
 
 impl Widget for UserInputWidget<'_> {
     /// renders bordered wrapped input text with a live cursor glyph.
+    ///
+    /// when input is empty, a placeholder is shown after the cursor.
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,

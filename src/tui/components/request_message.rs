@@ -10,6 +10,10 @@ use ratatui::{
 const HORIZONTAL_PADDING: usize = 1;
 
 /// request message adapter for chat transcript rendering.
+///
+/// this widget exposes both plain and styled row builders.
+/// plain rows are used for deterministic wrapped-line counting, while styled
+/// rows are used for rendering.
 pub struct RequestMessageWidget<'a> {
     content: &'a str,
     width: usize,
@@ -25,6 +29,8 @@ impl<'a> RequestMessageWidget<'a> {
     }
 
     /// returns plain-text rows used for wrapped line counting.
+    ///
+    /// this must stay row-count compatible with `styled_rows`.
     pub fn plain_rows(self) -> Vec<String> {
         let mut rows = Vec::new();
         let width = self.row_width();
@@ -42,6 +48,8 @@ impl<'a> RequestMessageWidget<'a> {
     }
 
     /// returns styled rows for transcript rendering.
+    ///
+    /// this must stay row-count compatible with `plain_rows`.
     pub fn styled_rows(self) -> Vec<Line<'static>> {
         let mut rows = Vec::new();
         let width = self.row_width();

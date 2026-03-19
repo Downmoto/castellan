@@ -1,5 +1,6 @@
 //! logging setup and layers used by the application.
 
+/// tracing layer implementation for terminal console output.
 pub mod app_console_layer;
 
 /// convenient exports and initialization helpers for application logging.

@@ -10,6 +10,9 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tracing::{event, span, Level};
 
+/// drains all ready assistant replies and appends them to their destination tabs.
+///
+/// this keeps ui rendering responsive by using non-blocking receive semantics.
 fn drain_assistant_replies(app: &mut Castellan, rx: &mut mpsc::Receiver<AssistantReply>) {
     while let Ok(reply) = rx.try_recv() {
         app.push_assistant_message_for_tab(reply.tab_index, reply.message)
@@ -17,6 +20,15 @@ fn drain_assistant_replies(app: &mut Castellan, rx: &mut mpsc::Receiver<Assistan
 }
 
 #[tokio::main]
+/// runs the interactive terminal loop and coordinates ui, input, and llm tasks.
+///
+/// lifecycle flow:
+/// - load environment and typed settings.
+/// - initialize logging and terminal resources.
+/// - process key events into app commands.
+/// - dispatch submit events to asynchronous llm workers.
+/// - drain completed assistant replies into tab transcripts.
+/// - restore terminal state before exit.
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 

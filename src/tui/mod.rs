@@ -1,6 +1,8 @@
 //! TUI surface modules and terminal lifecycle helpers.
 
+/// root app state and command application logic.
 pub mod app;
+/// reusable widgets used by the app shell.
 pub mod components;
 mod util;
 

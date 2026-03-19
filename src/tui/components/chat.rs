@@ -33,8 +33,11 @@ const CASTELLAN_ASCII: &str = r#"
 ▄▀███▄▄▀█▄███▄▄██▀▄██▄▀█▄▄▄▄██▄██▄▀█▄██▄██ ▀█"#;
 
 #[derive(Clone, Debug)]
+/// speaker identity for a transcript message.
 pub enum ChatSender {
+    /// message authored by the local user.
     User,
+    /// message authored by the assistant backend.
     Assistant,
 }
 
@@ -99,6 +102,11 @@ impl ChatTranscript {
 }
 
 /// mutable chat domain state used by app events and rendering.
+///
+/// invariants:
+/// - `scroll_from_bottom` is measured in wrapped transcript rows.
+/// - `scroll_from_bottom` is always clamped to valid transcript bounds.
+/// - viewport dimensions are updated through `set_viewport_from_area`.
 pub struct ChatState {
     title: String,
     input: String,
@@ -138,11 +146,14 @@ impl ChatState {
         &self.title
     }
 
+    /// updates the display title shown in sidebar tab labels.
     pub fn set_title(&mut self, title: String) {
         self.title = title;
     }
 
     /// updates viewport-derived values used for wrapped-line scrolling.
+    ///
+    /// call this whenever the chat render area changes size.
     pub fn set_viewport_from_area(&mut self, area: Rect) {
         let input_height = self.input_height_for_area(area);
         let content_width = Self::content_width_for_area(area);
@@ -245,6 +256,7 @@ fn calculate_input_height(input: &str, area: Rect) -> u16 {
     input_height
 }
 
+/// dispatches per-sender message adapters while sharing call-site logic.
 fn with_message_widget<T>(
     message: &ChatMessage,
     width: usize,
@@ -257,6 +269,7 @@ fn with_message_widget<T>(
     }
 }
 
+/// generates plain rows for wrapped-line counting and scroll bounds math.
 fn message_plain_rows(message: &ChatMessage, width: usize) -> Vec<String> {
     with_message_widget(
         message,
@@ -266,6 +279,7 @@ fn message_plain_rows(message: &ChatMessage, width: usize) -> Vec<String> {
     )
 }
 
+/// generates styled rows for transcript rendering.
 fn message_styled_rows(message: &ChatMessage, width: usize) -> Vec<Line<'static>> {
     with_message_widget(
         message,
@@ -275,6 +289,7 @@ fn message_styled_rows(message: &ChatMessage, width: usize) -> Vec<Line<'static>
     )
 }
 
+/// builds keybind rows shown in the empty-state help section.
 fn empty_state_shortcuts(keybinds: &AppKeybindsSettings) -> Vec<(String, &'static str)> {
     vec![
         (keybinds.label_for(KeyCommand::NewChatTab), "new tab"),
@@ -287,6 +302,7 @@ fn empty_state_shortcuts(keybinds: &AppKeybindsSettings) -> Vec<(String, &'stati
     ]
 }
 
+/// builds centered empty-state lines for a brand + shortcuts screen.
 fn empty_state_lines() -> Vec<Line<'static>> {
     let mut lines = Vec::new();
 
@@ -355,6 +371,11 @@ impl<'a> ChatWidget<'a> {
 
 impl Widget for ChatWidget<'_> {
     /// renders chat transcript and input row inside a bordered frame.
+    ///
+    /// rendering flow:
+    /// - show empty-state content when transcript has no messages.
+    /// - otherwise render all message rows and apply vertical scroll offset.
+    /// - always render input widget in the bottom section.
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,

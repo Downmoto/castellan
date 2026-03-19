@@ -24,8 +24,11 @@ use ratatui::{
 };
 
 pub enum CommandResult {
+    /// command was handled with no external side effect.
     None,
+    /// app loop should terminate.
     Exit,
+    /// caller should submit this message to the llm service.
     Submit { tab_index: usize, message: String },
 }
 
@@ -170,6 +173,11 @@ impl RenameState {
 }
 
 /// root tui state for cross-component composition.
+///
+/// state invariants:
+/// - `tabs` always contains at least one chat.
+/// - `tabs.active_tab` always points to a valid chat index.
+/// - rename mode is only entered while input mode is normal.
 pub struct Castellan {
     tabs: ChatTabs,
     pub input_mode: InputMode,
@@ -187,6 +195,7 @@ impl Default for Castellan {
 }
 
 impl Castellan {
+    /// splits the full terminal area into chat, sidebar, and status regions.
     fn layout_regions(area: Rect) -> (Rect, Rect, Rect) {
         let page = Layout::default()
             .direction(Direction::Vertical)
@@ -204,11 +213,17 @@ impl Castellan {
         (columns[0], columns[1], page[1])
     }
 
+    /// closes the active tab when more than one tab exists.
+    ///
+    /// if rename mode is active it is cancelled before closing.
     pub fn close_current_tab(&mut self) {
         self.cancel_current_tab_rename();
         self.tabs.close_active();
     }
 
+    /// starts rename mode for the active tab.
+    ///
+    /// this is ignored outside normal mode to avoid input-mode conflicts.
     pub fn rename_current_tab(&mut self) {
         if self.input_mode != InputMode::Normal {
             return;
@@ -217,18 +232,22 @@ impl Castellan {
         self.rename_state.start();
     }
 
+    /// returns `true` when the active tab is currently in rename mode.
     pub fn is_renaming_current_tab(&self) -> bool {
         self.rename_state.is_active()
     }
 
+    /// appends one character to the rename draft.
     pub fn rename_current_tab_push_char(&mut self, ch: char) {
         self.rename_state.push_char(ch);
     }
 
+    /// removes one character from the rename draft.
     pub fn rename_current_tab_backspace(&mut self) {
         self.rename_state.backspace();
     }
 
+    /// applies rename draft to the active tab title if non-empty.
     pub fn commit_current_tab_rename(&mut self) {
         let Some(new_title) = self.rename_state.finish() else {
             return;
@@ -237,11 +256,15 @@ impl Castellan {
         self.tabs.active_mut().set_title(new_title);
     }
 
+    /// exits rename mode and discards any draft content.
     pub fn cancel_current_tab_rename(&mut self) {
         self.rename_state.cancel();
     }
 
     /// updates chat viewport metrics from the current terminal area.
+    ///
+    /// call this before rendering when terminal size changes so wrapped-line
+    /// scroll bounds remain correct.
     pub fn update_viewport_from_area(&mut self, area: Rect) {
         let (chat_area, _, _) = Self::layout_regions(area);
 
@@ -250,6 +273,7 @@ impl Castellan {
         }
     }
 
+    /// handles key input for rename mode and reports whether the key was consumed.
     pub fn handle_rename_key_event(&mut self, key_event: KeyEvent) -> bool {
         if !self.is_renaming_current_tab() {
             return false;
@@ -271,6 +295,12 @@ impl Castellan {
         true
     }
 
+    /// applies a resolved command and returns any loop-level side effect.
+    ///
+    /// dispatch contract:
+    /// - mode and tab commands mutate local state only.
+    /// - submit returns `CommandResult::Submit` with tab index and user message.
+    /// - exit returns `CommandResult::Exit` for the outer event loop.
     pub fn apply_command(
         &mut self,
         command: KeyCommand,

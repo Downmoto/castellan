@@ -7,6 +7,9 @@ use ratatui::text::{Line, Span};
 const RESPONSE_LINE_PREFIX: &str = "│";
 
 /// assistant response adapter for chat transcript rendering.
+///
+/// each visual row starts with a fixed prefix marker so assistant messages are
+/// visually distinct from user messages.
 pub struct ResponseMessageWidget<'a> {
     content: &'a str,
     width: usize,
@@ -22,6 +25,8 @@ impl<'a> ResponseMessageWidget<'a> {
     }
 
     /// returns plain-text rows used for wrapped line counting.
+    ///
+    /// this must stay row-count compatible with `styled_rows`.
     pub fn plain_rows(self) -> Vec<String> {
         let lines: Vec<String> = self
             .wrapped_content_lines()
@@ -37,6 +42,8 @@ impl<'a> ResponseMessageWidget<'a> {
     }
 
     /// returns styled rows for transcript rendering.
+    ///
+    /// this must stay row-count compatible with `plain_rows`.
     pub fn styled_rows(self) -> Vec<Line<'static>> {
         let border_style = ratatui::style::Style::default().fg(dedicated_dark_grey_colour());
         let lines: Vec<Line<'static>> = self

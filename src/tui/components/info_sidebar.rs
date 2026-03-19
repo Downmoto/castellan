@@ -190,6 +190,9 @@ impl<'a> InfoSidebar<'a> {
 
 impl Widget for InfoSidebar<'_> {
     /// renders the full sidebar as two vertical sections.
+    ///
+    /// top half is reserved for metadata and future side information.
+    /// bottom half renders sessions with active-tab focus and rename hints.
     fn render(self, area: Rect, buf: &mut Buffer)
         where
             Self: Sized 
