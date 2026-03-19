@@ -250,7 +250,8 @@ impl ChatState {
 }
 
 fn calculate_input_height(input: &str, area: Rect) -> u16 {
-    let mut input_height = UserInputWidget::required_height(input, area.width);
+    let input_panel_width = area.width.saturating_sub(2);
+    let mut input_height = UserInputWidget::required_height(input, input_panel_width);
     let max_input_height = area.height.saturating_sub(1).max(1);
     input_height = input_height.min(max_input_height);
     input_height

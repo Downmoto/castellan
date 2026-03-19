@@ -34,8 +34,13 @@ impl<'a> UserInputWidget<'a> {
             return 1;
         }
 
-        let inner_width = width.saturating_sub(2).max(1) as usize;
-        let wrapped_rows = wrapped_line_count(input, inner_width).max(1);
+        let content_width = width.saturating_sub(2).max(1) as usize;
+        let input_with_cursor = if input.is_empty() {
+            String::new()
+        } else {
+            format!("{input}█")
+        };
+        let wrapped_rows = wrapped_line_count(&input_with_cursor, content_width).max(1);
 
         wrapped_rows.saturating_add(2).min(u16::MAX as usize) as u16
     }
