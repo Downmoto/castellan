@@ -47,30 +47,6 @@ pub enum KeyCommand {
 
 }
 
-impl KeyCommand {
-    /// Stable command resolution order used by [`AppKeybindsSettings::resolve_command`].
-    ///
-    /// Ordering matters if multiple configured chords overlap; the first
-    /// matching command wins.
-    const ORDERED: [Self; 15] = [
-        Self::ExitApp,
-        Self::EnterInputMode,
-        Self::ExitInputMode,
-        Self::NewChatTab,
-        Self::NextTab,
-        Self::PrevTab,
-        Self::Backspace,
-        Self::Submit,
-        Self::ScrollUp,
-        Self::ScrollDown,
-        Self::PageUp,
-        Self::PageDown,
-        Self::ScrollToBottom,
-        Self::CloseCurrentTab,
-        Self::RenameCurrentTab
-    ];
-}
-
 #[derive(Clone, Debug, Deserialize)]
 pub struct KeyChordSettings {
     /// Required key code portion of the chord.
@@ -229,43 +205,47 @@ impl Default for AppKeybindsSettings {
 }
 
 impl AppKeybindsSettings {
+    fn command_bindings(&self) -> [(KeyCommand, &KeyChordSettings); 15] {
+        [
+            (KeyCommand::ExitApp, &self.exit_app),
+            (KeyCommand::EnterInputMode, &self.enter_input_mode),
+            (KeyCommand::ExitInputMode, &self.exit_input_mode),
+            (KeyCommand::NewChatTab, &self.new_chat_tab),
+            (KeyCommand::NextTab, &self.next_tab),
+            (KeyCommand::PrevTab, &self.prev_tab),
+            (KeyCommand::Backspace, &self.backspace),
+            (KeyCommand::Submit, &self.submit),
+            (KeyCommand::ScrollUp, &self.scroll_up),
+            (KeyCommand::ScrollDown, &self.scroll_down),
+            (KeyCommand::PageUp, &self.page_up),
+            (KeyCommand::PageDown, &self.page_down),
+            (KeyCommand::ScrollToBottom, &self.scroll_to_bottom),
+            (KeyCommand::CloseCurrentTab, &self.close_current_tab),
+            (KeyCommand::RenameCurrentTab, &self.rename_current_tab),
+        ]
+    }
+
     /// Resolves a raw key event to the first matching command, if any.
     ///
-    /// Matching is performed in [`KeyCommand::ORDERED`] sequence.
+    /// Matching is performed in configured resolution order.
     pub fn resolve_command(&self, key_event: &KeyEvent) -> Option<KeyCommand> {
-        for command in KeyCommand::ORDERED {
-            if self.binding_for(command).matches(key_event) {
-                return Some(command);
-            }
-        }
-
-        None
+        self.command_bindings()
+            .into_iter()
+            .find_map(|(command, binding)| binding.matches(key_event).then_some(command))
     }
 
     /// returns the display label for a command's current binding.
     pub fn label_for(&self, command: KeyCommand) -> String {
-        self.binding_for(command).label()
+        self.binding_for(command)
+            .map(KeyChordSettings::label)
+            .unwrap_or_else(|| "unknown".to_string())
     }
 
     /// Returns the configured chord associated with a given command.
-    fn binding_for(&self, command: KeyCommand) -> &KeyChordSettings {
-        match command {
-            KeyCommand::ExitApp => &self.exit_app,
-            KeyCommand::EnterInputMode => &self.enter_input_mode,
-            KeyCommand::ExitInputMode => &self.exit_input_mode,
-            KeyCommand::NewChatTab => &self.new_chat_tab,
-            KeyCommand::NextTab => &self.next_tab,
-            KeyCommand::PrevTab => &self.prev_tab,
-            KeyCommand::Backspace => &self.backspace,
-            KeyCommand::Submit => &self.submit,
-            KeyCommand::ScrollUp => &self.scroll_up,
-            KeyCommand::ScrollDown => &self.scroll_down,
-            KeyCommand::PageUp => &self.page_up,
-            KeyCommand::PageDown => &self.page_down,
-            KeyCommand::ScrollToBottom => &self.scroll_to_bottom,
-            KeyCommand::CloseCurrentTab => &self.close_current_tab,
-            KeyCommand::RenameCurrentTab => &self.rename_current_tab
-        }
+    fn binding_for(&self, command: KeyCommand) -> Option<&KeyChordSettings> {
+        self.command_bindings()
+            .into_iter()
+            .find_map(|(candidate, binding)| (candidate == command).then_some(binding))
     }
 }
 

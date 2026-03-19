@@ -1,10 +1,4 @@
-use ratatui::{
-    layout::{Constraint, Direction, Layout, Margin},
-    prelude::{Buffer, Rect},
-    style::Style,
-    text::{Line, Span},
-    widgets::{Paragraph, Widget},
-};
+//! bottom status bar renderer for mode hints and scroll status.
 
 use crate::{
     input::InputMode,
@@ -16,6 +10,20 @@ use crate::{
     },
 };
 
+use ratatui::{
+    layout::{Constraint, Direction, Layout, Margin},
+    prelude::{Buffer, Rect},
+    style::Style,
+    text::{Line, Span},
+    widgets::{Paragraph, Widget},
+};
+
+/// renders mode badge, command hint text, and transcript scroll status.
+///
+/// parameter roles:
+/// - `input_mode` selects mode badge colors and command hint set.
+/// - `scroll_text` is precomputed from chat state and right-aligned.
+/// - `keybinds` provides user-configured key labels for command hints.
 pub fn render(
     area: Rect,
     buf: &mut Buffer,

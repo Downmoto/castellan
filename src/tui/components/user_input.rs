@@ -1,5 +1,12 @@
 //! dedicated user input component for chat.
 
+use crate::tui::util::{
+    dedicated_grey_colour, 
+    dedicated_input_background_colour, 
+    primary_colour, 
+    wrapped_line_count,
+};
+
 use ratatui::{
     layout::Margin,
     prelude::{Buffer, Rect},
@@ -7,23 +14,6 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Block, Paragraph, Widget, Wrap},
 };
-
-use crate::tui::util::{dedicated_grey_colour, dedicated_input_background_colour, primary_colour};
-
-/// wrapped visual line count for a string at fixed width.
-fn wrapped_line_count(text: &str, width: usize) -> usize {
-    if width == 0 {
-        return 0;
-    }
-
-    text.split('\n')
-        .map(|line| {
-            let visual_width = line.chars().count();
-            let cells = visual_width.max(1);
-            (cells - 1) / width + 1
-        })
-        .sum()
-}
 
 /// input widget state adapter for rendering typed content.
 pub struct UserInputWidget<'a> {
@@ -37,13 +27,20 @@ impl<'a> UserInputWidget<'a> {
     }
 
     /// computes rendered height with borders and wrapped content.
+    ///
+    /// returned height includes one-cell padding on all sides.
     pub fn required_height(input: &str, width: u16) -> u16 {
         if width == 0 {
             return 1;
         }
 
-        let inner_width = width.saturating_sub(2).max(1) as usize;
-        let wrapped_rows = wrapped_line_count(&input, inner_width).max(1);
+        let content_width = width.saturating_sub(2).max(1) as usize;
+        let input_with_cursor = if input.is_empty() {
+            String::new()
+        } else {
+            format!("{input}█")
+        };
+        let wrapped_rows = wrapped_line_count(&input_with_cursor, content_width).max(1);
 
         wrapped_rows.saturating_add(2).min(u16::MAX as usize) as u16
     }
@@ -51,6 +48,8 @@ impl<'a> UserInputWidget<'a> {
 
 impl Widget for UserInputWidget<'_> {
     /// renders bordered wrapped input text with a live cursor glyph.
+    ///
+    /// when input is empty, a placeholder is shown after the cursor.
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,

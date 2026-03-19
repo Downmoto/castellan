@@ -1,3 +1,8 @@
+//! custom tracing layer that prints structured console logs.
+//!
+//! this layer formats timestamp, level, target, optional source location, and
+//! event fields into a single readable line.
+
 use std::fmt::Write;
 
 use chrono::{Local, Utc};
@@ -32,6 +37,10 @@ impl<S> Layer<S> for AppConsoleLayer
 where
     S: Subscriber,
 {
+    /// formats and prints each tracing event.
+    ///
+    /// location is included for `error` and `debug` levels to aid diagnosis
+    /// while keeping regular info/warn output compact.
     fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {
         let metadata = event.metadata();
         let mut visitor = EventFieldVisitor::default();
