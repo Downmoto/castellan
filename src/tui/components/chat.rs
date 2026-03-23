@@ -1,5 +1,5 @@
 //! chat state and rendering primitives.
-//! this module owns transcript, input, and chat-local scrolling logic.
+//! this module owns transcript, input, and chat-local scroll view state.
 
 use crate::{
     settings::{
@@ -8,21 +8,22 @@ use crate::{
     },
     tui::{
         components::{
-            request_message::RequestMessageWidget, 
+            request_message::RequestMessageWidget,
             response_message::ResponseMessageWidget,
             user_input::UserInputWidget,
         },
-        util::{dedicated_dark_grey_colour, primary_colour, wrapped_line_count},
+        util::{dedicated_dark_grey_colour, primary_colour},
     },
 };
 
 use ratatui::{
-    layout::{Alignment, Constraint, Direction, Layout, Margin},
+    layout::{Alignment, Constraint, Direction, Layout, Margin, Size},
     prelude::{Buffer, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Paragraph, Widget, Wrap},
+    widgets::{Paragraph, StatefulWidget, Widget, Wrap},
 };
+use tui_scrollview::{ScrollView, ScrollViewState, ScrollbarVisibility};
 
 const CASTELLAN_ASCII: &str = r#"                                             
                            ▄▄ ▄▄             
@@ -80,40 +81,20 @@ impl ChatTranscript {
         });
     }
 
-    fn total_lines_for_width(&self, width: usize) -> usize {
-        if self.messages.is_empty() {
-            return 1;
-        }
-
-        let width = width.max(1);
-        self.messages
-            .iter()
-            .enumerate()
-            .map(|(index, message)| {
-                let message_lines = message_plain_rows(message, width)
-                    .iter()
-                    .map(|row| wrapped_line_count(row, width))
-                    .sum::<usize>();
-                let separator = usize::from(index + 1 < self.messages.len());
-                message_lines + separator
-            })
-            .sum()
-    }
 }
 
 /// mutable chat domain state used by app events and rendering.
 ///
 /// invariants:
-/// - `scroll_from_bottom` is measured in wrapped transcript rows.
-/// - `scroll_from_bottom` is always clamped to valid transcript bounds.
-/// - viewport dimensions are updated through `set_viewport_from_area`.
+/// - `scroll_state.offset().y` is clamped to the current transcript bounds.
+/// - viewport dimensions are updated through `set_viewport_from_area` or render.
 pub struct ChatState {
     title: String,
     input: String,
     transcript: ChatTranscript,
-    scroll_from_bottom: usize,
-    transcript_viewport_width: usize,
-    transcript_viewport_height: usize,
+    scroll_state: ScrollViewState,
+    transcript_content_height: u16,
+    transcript_viewport_height: u16,
 }
 
 impl Default for ChatState {
@@ -122,9 +103,9 @@ impl Default for ChatState {
             title: "chat".to_string(),
             input: String::new(),
             transcript: ChatTranscript::default(),
-            scroll_from_bottom: 0,
-            transcript_viewport_width: 0,
-            transcript_viewport_height: 0,
+            scroll_state: ScrollViewState::new(),
+            transcript_content_height: 1,
+            transcript_viewport_height: 1,
         }
     }
 }
@@ -134,12 +115,32 @@ impl ChatState {
         calculate_input_height(&self.input, area)
     }
 
-    fn content_width_for_area(area: Rect) -> usize {
-        area.width.saturating_sub(2).max(1) as usize
-    }
-
     fn transcript_height_for_area(area: Rect, input_height: u16) -> usize {
         area.height.saturating_sub(input_height).max(1) as usize
+    }
+
+    fn max_scroll_offset(&self) -> u16 {
+        self.transcript_content_height
+            .saturating_sub(self.transcript_viewport_height.saturating_sub(1))
+    }
+
+    fn clamp_scroll_offset(&mut self) {
+        let mut offset = self.scroll_state.offset();
+        offset.y = offset.y.min(self.max_scroll_offset());
+        self.scroll_state.set_offset(offset);
+    }
+
+    fn set_transcript_metrics(&mut self, content_height: u16, viewport_height: u16) {
+        self.transcript_content_height = content_height.max(1);
+        self.transcript_viewport_height = viewport_height.max(1);
+        self.clamp_scroll_offset();
+    }
+
+    fn set_scroll_offset_y(&mut self, y: u16) {
+        let mut offset = self.scroll_state.offset();
+        offset.y = y;
+        self.scroll_state.set_offset(offset);
+        self.clamp_scroll_offset();
     }
 
     pub fn title(&self) -> &str {
@@ -151,17 +152,13 @@ impl ChatState {
         self.title = title;
     }
 
-    /// updates viewport-derived values used for wrapped-line scrolling.
+    /// updates viewport-derived values used for transcript scrolling.
     ///
     /// call this whenever the chat render area changes size.
     pub fn set_viewport_from_area(&mut self, area: Rect) {
         let input_height = self.input_height_for_area(area);
-        let content_width = Self::content_width_for_area(area);
-        let transcript_height = Self::transcript_height_for_area(area, input_height);
-
-        self.transcript_viewport_width = content_width;
-        self.transcript_viewport_height = transcript_height;
-        self.clamp_scroll();
+        let transcript_height = Self::transcript_height_for_area(area, input_height) as u16;
+        self.transcript_viewport_height = transcript_height.max(1);
     }
 
     /// appends a typed character to input.
@@ -199,53 +196,39 @@ impl ChatState {
 
     /// moves transcript scroll up by wrapped lines.
     pub fn scroll_up(&mut self, lines: usize) {
-        let next = self.scroll_from_bottom.saturating_add(lines);
-        self.scroll_from_bottom = next.min(self.max_scroll_from_bottom());
+        let step = lines.min(u16::MAX as usize) as u16;
+        let y = self.scroll_state.offset().y.saturating_sub(step);
+        self.set_scroll_offset_y(y);
     }
 
     /// moves transcript scroll down by wrapped lines.
     pub fn scroll_down(&mut self, lines: usize) {
-        self.scroll_from_bottom = self.scroll_from_bottom.saturating_sub(lines);
-        self.clamp_scroll();
+        let step = lines.min(u16::MAX as usize) as u16;
+        let y = self.scroll_state.offset().y.saturating_add(step);
+        self.set_scroll_offset_y(y);
     }
 
     /// jumps transcript scroll to latest content.
     pub fn scroll_to_bottom(&mut self) {
-        self.scroll_from_bottom = 0;
+        // Use a large offset and let render-time clamping anchor to true bottom.
+        // This avoids stale pre-render content metrics pulling us off bottom.
+        let mut offset = self.scroll_state.offset();
+        offset.y = u16::MAX;
+        self.scroll_state.set_offset(offset);
     }
 
     /// builds status text consumed by the app status bar.
     pub fn status_text(&self) -> String {
-        let max_scroll = self.max_scroll_from_bottom();
-        if self.scroll_from_bottom == 0 {
+        let offset = self.scroll_state.offset().y;
+        let max_scroll = self.max_scroll_offset();
+
+        if offset >= max_scroll {
             "scroll: bottom".to_string()
-        } else if self.scroll_from_bottom >= max_scroll {
+        } else if offset == 0 {
             "scroll: top".to_string()
         } else {
-            format!("scroll: {} lines up", self.scroll_from_bottom)
+            format!("scroll: {} lines up", max_scroll.saturating_sub(offset))
         }
-    }
-
-    /// computes total wrapped transcript lines for current viewport width.
-    fn total_transcript_lines(&self) -> usize {
-        self.transcript
-            .total_lines_for_width(self.transcript_viewport_width.max(1))
-    }
-
-    /// computes total wrapped transcript lines for an explicit width.
-    fn total_transcript_lines_for_width(&self, width: usize) -> usize {
-        self.transcript.total_lines_for_width(width)
-    }
-
-    /// computes how far the viewport can scroll upward from bottom.
-    fn max_scroll_from_bottom(&self) -> usize {
-        let viewport = self.transcript_viewport_height.max(1);
-        self.total_transcript_lines().saturating_sub(viewport)
-    }
-
-    /// clamps scroll offset so it stays within valid transcript bounds.
-    fn clamp_scroll(&mut self) {
-        self.scroll_from_bottom = self.scroll_from_bottom.min(self.max_scroll_from_bottom());
     }
 }
 
@@ -268,16 +251,6 @@ fn with_message_widget<T>(
         ChatSender::User => request(RequestMessageWidget::new(&message.content, width)),
         ChatSender::Assistant => response(ResponseMessageWidget::new(&message.content, width)),
     }
-}
-
-/// generates plain rows for wrapped-line counting and scroll bounds math.
-fn message_plain_rows(message: &ChatMessage, width: usize) -> Vec<String> {
-    with_message_widget(
-        message,
-        width,
-        |widget| widget.plain_rows(),
-        |widget| widget.plain_rows(),
-    )
 }
 
 /// generates styled rows for transcript rendering.
@@ -360,12 +333,12 @@ fn empty_state_lines() -> Vec<Line<'static>> {
 
 /// chat renderer that reads from shared chat state.
 pub struct ChatWidget<'a> {
-    state: &'a ChatState,
+    state: &'a mut ChatState,
 }
 
 impl<'a> ChatWidget<'a> {
     /// creates a chat widget bound to the provided state.
-    pub fn new(state: &'a ChatState) -> Self {
+    pub fn new(state: &'a mut ChatState) -> Self {
         Self { state }
     }
 }
@@ -393,6 +366,9 @@ impl Widget for ChatWidget<'_> {
             }));
 
         if self.state.transcript.is_empty() {
+            self.state
+                .set_transcript_metrics(1, sections[0].height.max(1));
+
             let empty_lines = empty_state_lines();
             let empty_height = empty_lines.len();
             let available_height = sections[0].height as usize;
@@ -428,19 +404,17 @@ impl Widget for ChatWidget<'_> {
                 }
             }
 
-            let transcript_height = sections[0].height as usize;
-            let paragraph = Paragraph::new(Text::from(lines)).wrap(Wrap { trim: false });
-            let total_lines = self
-                .state
-                .total_transcript_lines_for_width(transcript_width);
-            let max_scroll_from_bottom = total_lines.saturating_sub(transcript_height);
-            let clamped_scroll_from_bottom =
-                self.state.scroll_from_bottom.min(max_scroll_from_bottom);
-            let top_scroll = total_lines
-                .saturating_sub(transcript_height.saturating_add(clamped_scroll_from_bottom));
-            let top_scroll = top_scroll.min(u16::MAX as usize) as u16;
+            let content_height = lines.len().max(1).min(u16::MAX as usize) as u16;
+            self.state
+                .set_transcript_metrics(content_height, sections[0].height.max(1));
 
-            paragraph.scroll((top_scroll, 0)).render(sections[0], buf);
+            let size = Size::new(sections[0].width.max(1), content_height);
+            let mut scroll_view = ScrollView::new(size)
+                .scrollbars_visibility(ScrollbarVisibility::Never);
+            let content_area = Rect::new(0, 0, size.width, size.height);
+
+            scroll_view.render_widget(Paragraph::new(Text::from(lines)), content_area);
+            scroll_view.render(sections[0], buf, &mut self.state.scroll_state);
         }
 
         UserInputWidget::new(&self.state.input).render(sections[1], buf);

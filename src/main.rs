@@ -56,7 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         app.update_viewport_from_area(area.into());
 
         terminal.draw(|frame| {
-            frame.render_widget(&app, frame.area());
+            frame.render_widget(&mut app, frame.area());
         })?;
 
         drain_assistant_replies(&mut app, &mut rx);

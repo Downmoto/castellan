@@ -406,7 +406,7 @@ impl Castellan {
     }
 }
 
-impl Widget for &Castellan {
+impl Widget for &mut Castellan {
     /// renders the full app page and delegates chat drawing.
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
     where
@@ -418,7 +418,7 @@ impl Widget for &Castellan {
 
         let (chat_area, sidebar_area, status_area) = Castellan::layout_regions(area);
 
-        ChatWidget::new(self.tabs.active()).render(chat_area, buf);
+        ChatWidget::new(self.tabs.active_mut()).render(chat_area, buf);
 
         InfoSidebar::new(
             &self.tabs.labels(&self.rename_state),
