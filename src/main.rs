@@ -1,6 +1,7 @@
 use castellan::{
     settings::{settings, used_default_settings},
     tracing::logging_init,
+    views::ChatView,
 };
 
 use dioxus::prelude::*;
@@ -33,9 +34,7 @@ fn App() -> Element {
             }}"
         }
 
-        div { class: "min-h-screen grid place-items-center",
-            h1 { class: "text-3xl font-bold", "hello from castellan" }
-        }
+        div { class: "min-h-screen grid place-items-center", ChatView {} }
 
     }
 }
