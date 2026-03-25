@@ -1,93 +1,65 @@
-use castellan::logging::prelude::*;
-use castellan::settings::prelude::*;
-use castellan::input::{KeyAction, KeybindResolver};
-use castellan::llm::{AssistantReply, LlmService};
-use castellan::tui::{app::{Castellan, CommandResult}, prelude::*};
+// The dioxus prelude contains a ton of common items used in dioxus apps. It's a good idea to import wherever you
+// need dioxus
+use dioxus::prelude::*;
 
-use crossterm::event::{self as c_event, Event, KeyEventKind};
-use dotenv::dotenv;
-use std::time::Duration;
-use tokio::sync::mpsc;
-use tracing::{event, span, Level};
+use views::{Blog, Home, Navbar};
 
-/// drains all ready assistant replies and appends them to their destination tabs.
-///
-/// this keeps ui rendering responsive by using non-blocking receive semantics.
-fn drain_assistant_replies(app: &mut Castellan, rx: &mut mpsc::Receiver<AssistantReply>) {
-    while let Ok(reply) = rx.try_recv() {
-        app.push_assistant_message_for_tab(reply.tab_index, reply.message)
-    }
+/// Define a components module that contains all shared components for our app.
+mod components;
+/// Define a views module that contains the UI for all Layouts and Routes for our app.
+mod views;
+
+/// The Route enum is used to define the structure of internal routes in our app. All route enums need to derive
+/// the [`Routable`] trait, which provides the necessary methods for the router to work.
+/// 
+/// Each variant represents a different URL pattern that can be matched by the router. If that pattern is matched,
+/// the components for that route will be rendered.
+#[derive(Debug, Clone, Routable, PartialEq)]
+#[rustfmt::skip]
+enum Route {
+    // The layout attribute defines a wrapper for all routes under the layout. Layouts are great for wrapping
+    // many routes with a common UI like a navbar.
+    #[layout(Navbar)]
+        // The route attribute defines the URL pattern that a specific route matches. If that pattern matches the URL,
+        // the component for that route will be rendered. The component name that is rendered defaults to the variant name.
+        #[route("/")]
+        Home {},
+        // The route attribute can include dynamic parameters that implement [`std::str::FromStr`] and [`std::fmt::Display`] with the `:` syntax.
+        // In this case, id will match any integer like `/blog/123` or `/blog/-456`.
+        #[route("/blog/:id")]
+        // Fields of the route variant will be passed to the component as props. In this case, the blog component must accept
+        // an `id` prop of type `i32`.
+        Blog { id: i32 },
 }
 
-#[tokio::main]
-/// runs the interactive terminal loop and coordinates ui, input, and llm tasks.
+// We can import assets in dioxus with the `asset!` macro. This macro takes a path to an asset relative to the crate root.
+// The macro returns an `Asset` type that will display as the path to the asset in the browser or a local path in desktop bundles.
+const FAVICON: Asset = asset!("/assets/favicon.ico");
+// The asset macro also minifies some assets like CSS and JS to make bundled smaller
+const MAIN_CSS: Asset = asset!("/assets/styling/main.css");
+
+fn main() {
+    // The `launch` function is the main entry point for a dioxus app. It takes a component and renders it with the platform feature
+    // you have enabled
+    dioxus::launch(App);
+}
+
+/// App is the main component of our app. Components are the building blocks of dioxus apps. Each component is a function
+/// that takes some props and returns an Element. In this case, App takes no props because it is the root of our app.
 ///
-/// lifecycle flow:
-/// - load environment and typed settings.
-/// - initialize logging and terminal resources.
-/// - process key events into app commands.
-/// - dispatch submit events to asynchronous llm workers.
-/// - drain completed assistant replies into tab transcripts.
-/// - restore terminal state before exit.
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenv().ok();
+/// Components should be annotated with `#[component]` to support props, better error messages, and autocomplete
+#[component]
+fn App() -> Element {
+    // The `rsx!` macro lets us define HTML inside of rust. It expands to an Element with all of our HTML inside.
+    rsx! {
+        // In addition to element and text (which we will see later), rsx can contain other components. In this case,
+        // we are using the `document::Link` component to add a link to our favicon and main CSS file into the head of our app.
+        document::Link { rel: "icon", href: FAVICON }
+        document::Link { rel: "stylesheet", href: MAIN_CSS }
 
-    let settings = settings();
-    let _subscriber = logging_init(settings.app_log.level, settings.app_log.timestamp_mode);
 
-    let _guard = span!(Level::INFO, "castellan_global").entered();
-    event!(Level::INFO, "App start");
-
-    if used_default_settings() {
-        event!(Level::WARN, "Failed to parse configuration; using defaults");
+        // The router component renders the route enum we defined above. It will handle synchronization of the URL and render
+        // the layouts and components for the active route.
+        Router::<Route> {}
     }
-
-    let mut terminal = init_terminal()?;
-    let mut app = Castellan::default();
-    let key_resolver = KeybindResolver::new(&settings.keybinds);
-    let scroll_line_step = settings.scroll.line_step;
-    let scroll_page_step = settings.scroll.page_step;
-    let llm_service = LlmService::new();
-    let (tx, mut rx) = mpsc::channel::<AssistantReply>(64);
-    event!(Level::INFO, "App initialized");
-
-    loop {
-        let area = terminal.size()?;
-        app.update_viewport_from_area(area.into());
-
-        terminal.draw(|frame| {
-            frame.render_widget(&mut app, frame.area());
-        })?;
-
-        drain_assistant_replies(&mut app, &mut rx);
-
-        if c_event::poll(Duration::from_millis(100))? && let Event::Key(key) = c_event::read()? {
-            if key.kind != KeyEventKind::Press {
-                continue;
-            }
-
-            if app.handle_rename_key_event(key) {
-                continue;
-            }
-
-            match key_resolver.resolve(key, app.input_mode) {
-                KeyAction::Command(command) => {
-                    match app.apply_command(command, scroll_line_step, scroll_page_step) {
-                        CommandResult::Exit => break,
-                        CommandResult::None => {}
-                        CommandResult::Submit { tab_index, message } => {
-                            llm_service.request_reply(tx.clone(), tab_index, message);
-                        }
-                    }
-                }
-                KeyAction::InsertChar(ch) => app.push_char(ch),
-                KeyAction::Noop => {}
-            }
-        }
-    }
-
-    deinit_terminal(&mut terminal)?;
-    event!(Level::INFO, "Exiting castellan");
-
-    Ok(())
 }

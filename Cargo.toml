@@ -1,30 +1,21 @@
 [package]
 name = "castellan"
-version = "0.1.0-dev"
-edition = "2024"
+version = "0.1.0"
+authors = ["Arad Fadaei <aradfadaie@gmail.com>"]
+edition = "2021"
 
-[profile.release]
-lto = true
-strip = true
-opt-level = 3
-panic = 'abort'
-codegen-units = 1
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rig-core = "0.31.0"
-tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread", "sync", "time"] }
-# rig-surrealdb = "0.1.0"
-# surrealdb = "3.0.0" long compile times, not being used yet disabled for now
-thiserror = "2.0.18"
-tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.22", features = ["std", "env-filter", "fmt", "json"] }
-tracing-appender = "0.2.4"
-tracing-futures = "0.2.5"
-config = "0.15.19"
-serde = { version = "1.0.228", features = ["derive"] }
-chrono = "0.4.42"
-dotenv = "0.15.0"
-futures = "0.3.32"
-ratatui = "0.30.0"
-crossterm = "0.29.0"
-tui-scrollview = "0.6.2"
+dioxus = { version = "0.7.1", features = ["router", "fullstack"] }
+
+[features]
+default = ["desktop"]
+# The feature that are only required for the web = ["dioxus/web"] build target should be optional and only enabled in the web = ["dioxus/web"] feature
+web = ["dioxus/web"]
+# The feature that are only required for the desktop = ["dioxus/desktop"] build target should be optional and only enabled in the desktop = ["dioxus/desktop"] feature
+desktop = ["dioxus/desktop"]
+# The feature that are only required for the mobile = ["dioxus/mobile"] build target should be optional and only enabled in the mobile = ["dioxus/mobile"] feature
+mobile = ["dioxus/mobile"]
+# The feature that are only required for the server = ["dioxus/server"] build target should be optional and only enabled in the server = ["dioxus/server"] feature
+server = ["dioxus/server"]
