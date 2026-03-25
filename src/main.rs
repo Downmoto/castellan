@@ -1,11 +1,22 @@
-use dioxus::prelude::*;
+use castellan::{
+    settings::{settings, used_default_settings},
+    tracing::logging_init,
+};
 
-/// Define a components module that contains all shared components for our app.
-mod components;
-/// Define a views module that contains the UI for all Layouts and Routes for our app.
-mod views;
+use dioxus::prelude::*;
+use tracing::{event, span, Level};
 
 fn main() {
+    let settings = settings();
+    let _subscriber = logging_init(settings.tracing.level, settings.tracing.timestamp_mode);
+
+    let _guard = span!(Level::INFO, "castellan_global").entered();
+    event!(Level::INFO, "App start");
+
+    if used_default_settings() {
+        event!(Level::WARN, "Failed to parse configuration; using defaults");
+    }
+
     dioxus::launch(App);
 }
 
@@ -15,7 +26,7 @@ fn App() -> Element {
         document::Stylesheet { href: asset!("/assets/tailwind.css") }
 
         style {
-            "body {{ 
+            "body {{
                 margin: 0; 
                 overflow-x: hidden; 
                 overflow-y: hidden; 
