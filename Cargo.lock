@@ -318,9 +318,10 @@ dependencies = [
 
 [[package]]
 name = "castellan"
-version = "0.1.0"
+version = "0.1.0-dev"
 dependencies = [
  "dioxus",
+ "tokio",
 ]
 
 [[package]]
@@ -883,15 +884,12 @@ dependencies = [
  "http",
  "infer",
  "jni 0.21.1",
- "js-sys",
  "ndk",
  "ndk-context",
  "ndk-sys",
  "percent-encoding",
  "thiserror 2.0.18",
  "tokio",
- "wasm-bindgen-futures",
- "web-sys",
 ]
 
 [[package]]
@@ -1126,7 +1124,6 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-streams",
- "web-sys",
  "xxhash-rust",
 ]
 
@@ -4897,7 +4894,9 @@ dependencies = [
  "bytes",
  "libc",
  "mio",
+ "parking_lot",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys 0.61.2",
