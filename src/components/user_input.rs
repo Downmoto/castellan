@@ -6,7 +6,7 @@ pub fn UserInput(on_submit: EventHandler<String>) -> Element {
 
     rsx! {
         form {
-            class: "mt-3 flex w-full gap-2",
+            class: "mt-3 flex w-full items-center gap-2",
             onsubmit: move |evt| {
                 evt.prevent_default();
                 let text = draft().trim().to_string();
@@ -18,7 +18,7 @@ pub fn UserInput(on_submit: EventHandler<String>) -> Element {
             },
 
             input {
-                class: "flex-1 rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 outline-none",
+                class: "flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-500",
                 r#type: "text",
                 value: draft(),
                 placeholder: "type a message",
@@ -26,7 +26,7 @@ pub fn UserInput(on_submit: EventHandler<String>) -> Element {
             }
 
             button {
-                class: "rounded-md border border-neutral-600 bg-neutral-800 px-3 py-2 text-sm text-neutral-100",
+                class: "rounded-md border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-200",
                 r#type: "submit",
                 "send"
             }

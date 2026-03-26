@@ -5,6 +5,11 @@ use castellan::{
 };
 
 use dioxus::prelude::*;
+#[cfg(feature = "desktop")]
+use dioxus::desktop::{
+    tao::{dpi::LogicalSize, window::WindowBuilder},
+    Config,
+};
 use tracing::{event, span, Level};
 
 fn main() {
@@ -18,7 +23,7 @@ fn main() {
         event!(Level::WARN, "Failed to parse configuration; using defaults");
     }
 
-    dioxus::launch(App);
+    launch();
 }
 
 #[component]
@@ -36,5 +41,26 @@ fn App() -> Element {
 
         div { class: "min-h-screen grid place-items-center", ChatView {} }
 
+    }
+}
+
+fn launch() {
+    #[cfg(feature = "desktop")]
+    {
+        dioxus::LaunchBuilder::desktop()
+            .with_cfg(
+                Config::new().with_window(
+                    WindowBuilder::new()
+                        .with_inner_size(LogicalSize::new(1280.0, 840.0))
+                        .with_min_inner_size(LogicalSize::new(960.0, 640.0))
+                        .with_title(String::from("castellan"))
+                ),
+            )
+            .launch(App);
+    }
+
+    #[cfg(not(feature = "desktop"))]
+    {
+        dioxus::launch(App);
     }
 }

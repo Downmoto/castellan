@@ -7,10 +7,14 @@ pub fn ChatView() -> Element {
     let mut messages = use_signal(|| vec![]);
 
     rsx! {
-        div { class: "w-full max-w-xl rounded-lg border border-neutral-700 bg-neutral-950 p-4",
-            h1 { class: "mb-3 text-lg font-semibold text-neutral-100", "chat" }
+        div { class: "flex h-[72vh] w-full max-w-2xl flex-col rounded-xl border border-slate-200 bg-slate-50 p-4",
+            div { class: "mb-3 border-b border-slate-200 pb-2",
+                h1 { class: "text-base font-semibold text-slate-900", "castellan chat" }
+            }
 
-            Chat { messages }
+            div { class: "min-h-0 flex-1",
+                Chat { messages }
+            }
 
             UserInput {
                 on_submit: move |text| {
