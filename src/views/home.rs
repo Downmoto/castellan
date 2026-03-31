@@ -7,9 +7,9 @@ pub fn HomeView() -> Element {
     let mut messages = use_signal(|| vec![]);
 
     rsx! {
-        div { class: "flex h-[72vh] w-full max-w-2xl flex-col rounded-xl border border-slate-200 bg-slate-50 p-4",
-            div { class: "mb-3 border-b border-slate-200 pb-2",
-                h1 { class: "text-base font-semibold text-slate-900", "castellan chat" }
+        div { class: "flex h-full w-full flex-col rounded-xl border border-secondary-200 bg-primary-50 p-4",
+            div { class: "mb-3 border-b border-secondary-200 pb-2",
+                h1 { class: "text-base font-semibold text-secondary-900", "castellan chat" }
             }
 
             div { class: "min-h-0 flex-1",

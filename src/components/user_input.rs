@@ -18,7 +18,7 @@ pub fn UserInput(on_submit: EventHandler<String>) -> Element {
             },
 
             input {
-                class: "flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-500",
+                class: "flex-1 rounded-md border border-secondary-300 bg-neutral-50 px-3 py-2 text-sm text-secondary-900 outline-none placeholder:text-secondary-400 focus:border-primary-500",
                 r#type: "text",
                 value: draft(),
                 placeholder: "type a message",
@@ -26,7 +26,7 @@ pub fn UserInput(on_submit: EventHandler<String>) -> Element {
             }
 
             button {
-                class: "rounded-md border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-200",
+                class: "rounded-md border border-secondary-300 bg-tertiary-300 px-4 py-2 text-sm font-medium text-secondary-900 hover:bg-tertiary-400",
                 r#type: "submit",
                 "send"
             }

@@ -1,14 +1,17 @@
-pub mod sidebar;
-pub use sidebar::SidebarView;
+mod layout;
+use layout::LayoutView;
 
-pub mod home;
-pub use home::HomeView;
+mod sidebar;
+use sidebar::SidebarView;
+
+mod home;
+use home::HomeView;
 
 use dioxus::prelude::*;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 pub enum Route {
-	#[layout(SidebarView)]
+	#[layout(LayoutView)]
 	#[route("/")]
 	HomeView {},
 }

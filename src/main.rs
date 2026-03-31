@@ -32,14 +32,6 @@ fn App() -> Element {
     rsx! {
         document::Stylesheet { href: asset!("/assets/tailwind.css") }
 
-        style {
-            "body {{
-                margin: 0; 
-                overflow-x: hidden; 
-                overflow-y: hidden; 
-            }}"
-        }
-
         Router::<Route> {}
     }
 }
