@@ -1,16 +1,17 @@
 use castellan::{
     settings::{settings, used_default_settings},
     tracing::logging_init,
-    views::ChatView,
+    views::Route,
 };
 
 use dioxus::prelude::*;
+use tracing::{event, span, Level};
+
 #[cfg(feature = "desktop")]
 use dioxus::desktop::{
     tao::{dpi::LogicalSize, window::WindowBuilder},
     Config,
 };
-use tracing::{event, span, Level};
 
 fn main() {
     let settings = settings();
@@ -39,8 +40,7 @@ fn App() -> Element {
             }}"
         }
 
-        div { class: "min-h-screen grid place-items-center", ChatView {} }
-
+        Router::<Route> {}
     }
 }
 
@@ -53,7 +53,7 @@ fn launch() {
                     WindowBuilder::new()
                         .with_inner_size(LogicalSize::new(1280.0, 840.0))
                         .with_min_inner_size(LogicalSize::new(960.0, 640.0))
-                        .with_title(String::from("castellan"))
+                        .with_title(String::from("castellan")),
                 ),
             )
             .launch(App);

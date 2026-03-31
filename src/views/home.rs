@@ -3,7 +3,7 @@ use dioxus::prelude::*;
 use crate::components::{Chat, UserInput};
 
 #[component]
-pub fn ChatView() -> Element {
+pub fn HomeView() -> Element {
     let mut messages = use_signal(|| vec![]);
 
     rsx! {
