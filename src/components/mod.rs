@@ -1,5 +1,8 @@
 pub mod chat;
-pub mod user_input;
+pub use chat::ChatComponent;
 
-pub use chat::Chat;
-pub use user_input::UserInput;
+pub mod user_input;
+pub use user_input::UserInputComponent;
+
+pub mod block;
+pub use block::BlockComponent;

@@ -1,9 +1,18 @@
-use crate::views::{Route, SidebarView};
+use crate::{components::BlockComponent, views::{Route, SidebarView}};
 use dioxus::prelude::*;
 
 #[component]
 pub fn LayoutView() -> Element {
     rsx! {
+        div { class: "h-full w-full bg-neutral-800 p-4",
+            div { class: "flex h-full w-full gap-4",
+                SidebarView {}
+
+                BlockComponent { flex_amount: 1 }
+                BlockComponent { flex_amount: 3, Outlet::<Route> {} }
+            }
+        }
+
         style {
             "html, body {{
                 width: 100%;
@@ -22,16 +31,6 @@ pub fn LayoutView() -> Element {
                 overflow-x: hidden;
                 overflow-y: hidden;
             }}"
-        }
-
-        div { class: "h-full w-full bg-neutral-800 p-4",
-            div { class: "flex h-full w-full gap-4",
-                SidebarView {}
-
-                main { class: "min-w-0 flex-1 overflow-hidden rounded-3xl border-2 border-neutral-950 bg-neutral-100 p-4",
-                    Outlet::<Route> {}
-                }
-            }
         }
     }
 }

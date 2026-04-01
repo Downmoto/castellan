@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 
 #[component]
-pub fn Chat(messages: Signal<Vec<String>>) -> Element {
+pub fn ChatComponent(messages: Signal<Vec<String>>) -> Element {
     let current_messages = messages();
 
     rsx! {

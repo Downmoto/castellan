@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 
 #[component]
-pub fn UserInput(on_submit: EventHandler<String>) -> Element {
+pub fn UserInputComponent(on_submit: EventHandler<String>) -> Element {
     let mut draft = use_signal(String::new);
 
     rsx! {
