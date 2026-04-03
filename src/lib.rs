@@ -1,12 +1,10 @@
-//! crate entry point for castellan runtime modules.
+/// Define a components module that contains all shared components for our app.
+pub mod components;
+/// Define a views module that contains the UI for all Layouts and Routes for our app.
+pub mod views;
 
-/// input translation and mode-aware key command resolution.
-pub mod input;
-/// tracing setup and console event formatting.
-pub mod logging;
-/// llm request execution and assistant reply generation.
-pub mod llm;
-/// application settings loading and typed configuration models.
-pub mod settings;
-/// terminal ui state, components, and lifecycle helpers.
-pub mod tui;
+pub mod modules;
+pub mod llms;
+
+pub use modules::settings;
+pub use modules::tracing;

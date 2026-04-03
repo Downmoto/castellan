@@ -22,18 +22,18 @@ pub enum TimestampMode {
 }
 
 /// tracing layer that prints structured events to stdout.
-pub struct AppConsoleLayer {
+pub struct TracingConsoleLayer {
     timestamp_mode: TimestampMode,
 }
 
-impl AppConsoleLayer {
+impl TracingConsoleLayer {
     /// creates a console layer using the provided timestamp mode.
     pub fn new(timestamp_mode: TimestampMode) -> Self {
         Self { timestamp_mode }
     }
 }
 
-impl<S> Layer<S> for AppConsoleLayer
+impl<S> Layer<S> for TracingConsoleLayer
 where
     S: Subscriber,
 {
