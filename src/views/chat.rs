@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 
-use crate::components::{TranscriptComponent, UserInputComponent};
+use crate::components::{ChatMessage, TranscriptComponent, UserInputComponent};
+use crate::llms::generate_reply;
 
 #[component]
 pub fn ChatView() -> Element {
@@ -21,8 +22,18 @@ pub fn ChatView() -> Element {
 
                 div { class: "mt-10 w-full max-w-3xl",
                     UserInputComponent {
-                        on_submit: move |text| {
-                            messages.with_mut(|items| items.push(text));
+                        on_submit: move |text: String| {
+                            messages.with_mut(|items| items.push(ChatMessage::User(text.clone())));
+
+                            let mut messages = messages;
+                            spawn(async move {
+                                let reply = match generate_reply(&text).await {
+                                    Ok(content) => content,
+                                    Err(error) => format!("error: {error}"),
+                                };
+
+                                messages.with_mut(|items| items.push(ChatMessage::Assistant(reply)));
+                            });
                         },
                     }
                 }
@@ -35,8 +46,18 @@ pub fn ChatView() -> Element {
 
                 div { class: "mt-3 w-full",
                     UserInputComponent {
-                        on_submit: move |text| {
-                            messages.with_mut(|items| items.push(text));
+                        on_submit: move |text: String| {
+                            messages.with_mut(|items| items.push(ChatMessage::User(text.clone())));
+
+                            let mut messages = messages;
+                            spawn(async move {
+                                let reply = match generate_reply(&text).await {
+                                    Ok(content) => content,
+                                    Err(error) => format!("error: {error}"),
+                                };
+
+                                messages.with_mut(|items| items.push(ChatMessage::Assistant(reply)));
+                            });
                         },
                     }
                 }

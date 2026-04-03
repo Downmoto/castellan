@@ -17,14 +17,15 @@ tracing-futures = "0.2.5"
 config = "0.15.19"
 serde = { version = "1.0.228", features = ["derive"] }
 chrono = "0.4.42"
-rig-core = { version = "0.33.0", optional = true }
+rig-core = { version = "0.33.0" }
+dotenv = "0.15.0"
 
 
 
 [features]
 default = ["desktop"]
 desktop = ["dioxus/desktop"]
-server = ["dioxus/server", "dep:tokio", "dep:rig-core"]
+server = ["dioxus/server", "dep:tokio"]
 # web = ["dioxus/web"]
 # mobile = ["dioxus/mobile"]
 

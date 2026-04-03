@@ -6,6 +6,7 @@ use castellan::{
 
 use dioxus::prelude::*;
 use tracing::{event, span, Level};
+use dotenv::dotenv;
 
 #[cfg(feature = "desktop")]
 use dioxus::desktop::{
@@ -14,6 +15,8 @@ use dioxus::desktop::{
 };
 
 fn main() {
+    dotenv().ok();
+
     let settings = settings();
     let _subscriber = logging_init(settings.tracing.level, settings.tracing.timestamp_mode);
 
