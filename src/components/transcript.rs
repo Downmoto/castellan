@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use comrak::{markdown_to_html, Options};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ChatMessage {
@@ -16,6 +17,21 @@ impl ChatMessage {
             Self::User(content) | Self::Assistant(content) => content,
         }
     }
+}
+
+fn render_markdown(content: &str) -> String {
+    let mut options = Options::default();
+    // keep raw html escaped for safer rendering
+    options.render.unsafe_ = false;
+    options.extension.table = true;
+    options.extension.strikethrough = true;
+    options.extension.tasklist = true;
+    options.extension.autolink = true;
+    options.render.hardbreaks = true;
+
+    // normalize newlines for consistent fenced code parsing
+    let normalized = content.replace("\r\n", "\n");
+    markdown_to_html(&normalized, &options)
 }
 
 #[component]
@@ -44,8 +60,15 @@ pub fn TranscriptComponent(messages: Signal<Vec<ChatMessage>>) -> Element {
 
             for (idx , message) in current_messages.iter().enumerate().rev() {
                 div { key: "{idx}", class: "mb-2.5 flex",
-                    p { class: if message.is_assistant() { "max-w-[85%] px-1 py-2 text-sm leading-relaxed text-primary-50 whitespace-pre-wrap wrap-break-word" } else { "max-w-[85%] rounded-md bg-secondary-700 px-3 py-2 text-sm leading-relaxed text-primary-50 whitespace-pre-wrap wrap-break-word" },
-                        {message.content()}
+                    if message.is_assistant() {
+                        div {
+                            class: "markdown-content max-w-[85%] px-1 py-2 text-sm leading-relaxed text-primary-50 wrap-break-word",
+                            dangerous_inner_html: render_markdown(message.content()),
+                        }
+                    } else {
+                        p { class: "max-w-[85%] rounded-md bg-secondary-700 px-3 py-2 text-sm leading-relaxed text-primary-50 whitespace-pre-wrap wrap-break-word",
+                            {message.content()}
+                        }
                     }
                 }
             }
