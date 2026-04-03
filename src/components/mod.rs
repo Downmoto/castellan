@@ -1,5 +1,5 @@
-pub mod chat;
-pub use chat::ChatComponent;
+pub mod transcript;
+pub use transcript::TranscriptComponent;
 
 pub mod user_input;
 pub use user_input::UserInputComponent;

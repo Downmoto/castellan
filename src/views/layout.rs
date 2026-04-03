@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 #[component]
 pub fn LayoutView() -> Element {
     rsx! {
-        div { class: "h-full w-full bg-neutral-800 p-4",
+        div { class: "h-full w-full bg-neutral-900 p-4",
             div { class: "flex h-full w-full gap-4",
                 SidebarView {}
 

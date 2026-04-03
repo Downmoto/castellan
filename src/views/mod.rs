@@ -4,8 +4,8 @@ use layout::LayoutView;
 mod sidebar;
 use sidebar::SidebarView;
 
-mod home;
-use home::HomeView;
+mod chat;
+use chat::ChatView;
 
 use dioxus::prelude::*;
 
@@ -13,5 +13,5 @@ use dioxus::prelude::*;
 pub enum Route {
 	#[layout(LayoutView)]
 	#[route("/")]
-	HomeView {},
+	ChatView {},
 }

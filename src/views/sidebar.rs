@@ -15,8 +15,10 @@ pub fn SidebarView() -> Element {
                     let link_name = link.0;
                     let link_icon = link.1;
                     rsx! {
-                        img { src: link_icon, alt: "icon" }
-                        div { "{link_name}" }
+                        div { class: "flex flex-col items-center w-full",
+                            img { class: "w-full h-auto max-w-15 invert", src: link_icon, alt: "icon" }
+                            div { class: "text-neutral-100", "{link_name}" }
+                        }
                     }
                 }
             }
