@@ -8,7 +8,7 @@ pub fn LayoutView() -> Element {
             div { class: "flex h-full w-full gap-4",
                 SidebarView {}
 
-                BlockComponent { flex_amount: 1 }
+                // BlockComponent { flex_amount: 1 }
                 BlockComponent { flex_amount: 3, Outlet::<Route> {} }
             }
         }

@@ -44,7 +44,7 @@ pub fn ChatView() -> Element {
                     TranscriptComponent { messages }
                 }
 
-                div { class: "mt-3 w-full",
+                div { class: "mt-3 w-full max-w-3xl mx-auto",
                     UserInputComponent {
                         on_submit: move |text: String| {
                             messages.with_mut(|items| items.push(ChatMessage::User(text.clone())));

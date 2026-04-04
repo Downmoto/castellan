@@ -39,7 +39,7 @@ pub fn TranscriptComponent(messages: Signal<Vec<ChatMessage>>) -> Element {
     let current_messages = messages();
 
     rsx! {
-        div { class: "h-full w-full overflow-y-auto rounded-lg rounded-b-md bg-neutral-900 flex flex-col-reverse",
+        div { class: "h-full w-full overflow-y-auto rounded-lg rounded-b-md bg-neutral-900 flex flex-col-reverse p-4",
             if current_messages.is_empty() {
                 div { class: "h-full flex flex-col",
                     div { class: "grow flex flex-col items-center justify-center px-6 pt-32 pb-16",
@@ -62,11 +62,11 @@ pub fn TranscriptComponent(messages: Signal<Vec<ChatMessage>>) -> Element {
                 div { key: "{idx}", class: "mb-2.5 flex",
                     if message.is_assistant() {
                         div {
-                            class: "markdown-content max-w-[85%] px-1 py-2 text-sm leading-relaxed text-primary-50 wrap-break-word",
+                            class: "markdown-content px-1 py-2 text-sm leading-relaxed text-primary-50 wrap-break-word",
                             dangerous_inner_html: render_markdown(message.content()),
                         }
                     } else {
-                        p { class: "max-w-[85%] rounded-md bg-secondary-700 px-3 py-2 text-sm leading-relaxed text-primary-50 whitespace-pre-wrap wrap-break-word",
+                        p { class: "rounded-md bg-secondary-700 px-3 py-2 text-sm leading-relaxed text-primary-50 whitespace-pre-wrap wrap-break-word",
                             {message.content()}
                         }
                     }
