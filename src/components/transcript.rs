@@ -1,4 +1,4 @@
-use dioxus::prelude::*;
+use dioxus::{prelude::*};
 use comrak::{markdown_to_html, Options};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -37,9 +37,20 @@ fn render_markdown(content: &str) -> String {
 #[component]
 pub fn TranscriptComponent(messages: Signal<Vec<ChatMessage>>) -> Element {
     let current_messages = messages();
+    let mut bottom_anchor: Signal<Option<std::rc::Rc<MountedData>>> = use_signal(|| None);
+
+    use_effect(move || {
+        let _ = messages().len();
+
+        if let Some(anchor) = bottom_anchor.cloned() {
+            spawn(async move {
+                let _ = anchor.scroll_to(ScrollBehavior::Instant).await;
+            });
+        }
+    });
 
     rsx! {
-        div { class: "h-full w-full overflow-y-auto rounded-lg rounded-b-md bg-neutral-900 flex flex-col-reverse p-4",
+        div { class: "h-full w-full overflow-y-auto rounded-lg rounded-b-md bg-neutral-900 flex flex-col p-4",
             if current_messages.is_empty() {
                 div { class: "h-full flex flex-col",
                     div { class: "grow flex flex-col items-center justify-center px-6 pt-32 pb-16",
@@ -58,7 +69,7 @@ pub fn TranscriptComponent(messages: Signal<Vec<ChatMessage>>) -> Element {
                 }
             }
 
-            for (idx , message) in current_messages.iter().enumerate().rev() {
+            for (idx , message) in current_messages.iter().enumerate() {
                 div { key: "{idx}", class: "mb-2.5 flex",
                     if message.is_assistant() {
                         div {
@@ -71,6 +82,11 @@ pub fn TranscriptComponent(messages: Signal<Vec<ChatMessage>>) -> Element {
                         }
                     }
                 }
+            }
+
+            div {
+                class: "h-px w-full",
+                onmounted: move |element| bottom_anchor.set(Some(element.data())),
             }
         }
     }

@@ -126,3 +126,20 @@
 .markdown-content tbody tr:nth-child(even) {
 	background: #1d282e;
 }
+
+.chat-input-enter {
+	animation: chat-input-slide-to-bottom 220ms cubic-bezier(0.22, 1, 0.36, 1);
+	will-change: transform, opacity;
+}
+
+@keyframes chat-input-slide-to-bottom {
+	from {
+		opacity: 0;
+		transform: translateY(-8.5rem) scale(0.985);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}

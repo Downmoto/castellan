@@ -40,11 +40,11 @@ pub fn ChatView() -> Element {
             }
         } else {
             div { class: "flex h-full w-full flex-col rounded-xl",
-                div { class: "min-h-0 flex-1",
+                div { class: "min-h-0 flex-1 w-3xl mx-auto",
                     TranscriptComponent { messages }
                 }
 
-                div { class: "mt-3 w-full max-w-3xl mx-auto",
+                div { class: "mt-3 w-full max-w-3xl mx-auto chat-input-enter",
                     UserInputComponent {
                         on_submit: move |text: String| {
                             messages.with_mut(|items| items.push(ChatMessage::User(text.clone())));
