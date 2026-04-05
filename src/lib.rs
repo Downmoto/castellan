@@ -4,7 +4,7 @@ pub mod components;
 pub mod views;
 
 pub mod modules;
-pub mod llms;
 
 pub use modules::settings;
 pub use modules::tracing;
+pub use modules::llms;
